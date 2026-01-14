@@ -1,0 +1,20 @@
+[
+    {
+        "id": "admin",
+        "pw": "orzoai",
+        "name": "관리자",
+        "role": "admin"
+    },
+    {
+        "id": "student1",
+        "pw": "1234",
+        "name": "홍길동",
+        "role": "student"
+    },
+    {
+        "id": "student2",
+        "pw": "1234",
+        "name": "김철수",
+        "role": "student"
+    }
+]

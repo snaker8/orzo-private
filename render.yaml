@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: orzo-dashboard
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm run prod
+    envVars:
+      - key: NODE_VERSION
+        value: 18.17.0
+      - key: ADMIN_PASSWORD
+        sync: false
