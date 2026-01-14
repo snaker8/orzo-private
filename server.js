@@ -465,7 +465,7 @@ app.post('/api/users', (req, res) => {
     }
 });
 
-app.post('/api/users/sync', (req, res) => {
+app.post('/api/users/sync', async (req, res) => {
     const clientPw = req.headers['x-admin-password'];
     if (!clientPw || clientPw !== ADMIN_PASSWORD) {
         return res.status(401).json({ success: false, message: 'Unauthorized' });
