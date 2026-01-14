@@ -194,7 +194,8 @@ const parseFile = (filePath) => {
         if (!rawRows || rawRows.length === 0) return [];
 
         // 2. Find Header Row
-        const keywords = ['이름', 'Name', '학생', '담당', '점수', 'Score', '과제', 'Title', '날짜'];
+        // [UPDATED] Added '성명' to keywords
+        const keywords = ['이름', 'Name', '학생', '성명', '담당', '점수', 'Score', '과제', 'Title', '날짜'];
         let headerRowIndex = 0;
 
         for (let i = 0; i < Math.min(rawRows.length, 10); i++) {
@@ -471,6 +472,12 @@ app.post('/api/users/sync', (req, res) => {
     }
 
     try {
+        // [FIX] Ensure data is loaded if cache is empty
+        if (cachedData.length === 0) {
+            console.log('[Users] Cache empty. Forcing scan before sync...');
+            await loadDataAsync();
+        }
+
         const currentUsers = getUsers();
         const existingIds = new Set(currentUsers.map(u => u.id));
         const addedUsers = [];
@@ -478,8 +485,14 @@ app.post('/api/users/sync', (req, res) => {
         // Scan cachedData for unique names
         const studentNames = new Set();
         cachedData.forEach(item => {
-            if (item.name) studentNames.add(item.name);
+            // Support multiple name fields
+            const name = item.이름 || item.Name || item.학생 || item.성명 || item.name;
+            if (name && typeof name === 'string' && name.trim().length > 0) {
+                studentNames.add(name.trim());
+            }
         });
+
+        console.log(`[Users] Found ${studentNames.size} unique students in ${cachedData.length} records.`);
 
         studentNames.forEach(name => {
             // ID = Name (as requested), PW = '1234'
@@ -501,7 +514,13 @@ app.post('/api/users/sync', (req, res) => {
             console.log(`[Users] Synced. Added ${addedUsers.length} new users.`);
         }
 
-        res.json({ success: true, addedCount: addedUsers.length, totalCount: currentUsers.length });
+        res.json({
+            success: true,
+            addedCount: addedUsers.length,
+            totalCount: currentUsers.length,
+            scannedRecords: cachedData.length,
+            foundStudents: studentNames.size
+        });
     } catch (e) {
         console.error('[Users] Sync failed', e);
         res.status(500).json({ success: false, message: 'Failed to sync users' });
