@@ -1237,7 +1237,7 @@ const StudentDetailView = ({ student, onClose, onOpenReport, isMobile }) => {
 };
 
 // [NEW] User Management Panel
-const UserManagementPanel = ({ themeColor, onSimulateLogin, onClose }) => {
+const UserManagementPanel = ({ themeColor, onSimulateLogin, onClose, adminPassword }) => {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(false);
     const [newUser, setNewUser] = useState({ id: '', pw: '', name: '', role: 'student' });
@@ -1249,16 +1249,32 @@ const UserManagementPanel = ({ themeColor, onSimulateLogin, onClose }) => {
 
     const fetchUsers = async () => {
         setLoading(true);
+        console.log('[Debug] Fetching users...'); // [DEBUG]
         try {
-            const res = await fetch('/api/users', {
-                headers: { 'x-admin-password': 'orzoai' } // Using system password for admin ops
+            const res = await fetch('/api/users?pw=orzoai', {
+                headers: { 'x-admin-password': 'orzoai' } // [FIX] Use system password for admin ops
             });
+            console.log('[Debug] Fetch status:', res.status); // [DEBUG]
             if (res.ok) {
                 const data = await res.json();
-                setUsers(data);
+                console.log('[Debug] Fetched data:', data); // [DEBUG]
+
+                if (Array.isArray(data)) {
+                    setUsers(data);
+                    // Alert if empty for immediate visibility
+                    if (data.length === 0) alert('[Debug] User list is empty even after fetch!');
+                } else {
+                    console.error('[Debug] Data is not an array:', data);
+                    alert('[Debug] Server returned invalid data format.');
+                }
+            } else {
+                const errText = await res.text();
+                console.error('[Debug] Fetch failed:', errText);
+                alert(`[Debug] Failed to fetch users: ${res.status}\n${errText}`);
             }
         } catch (error) {
             console.error('Failed to fetch users', error);
+            alert(`[Debug] Network Error: ${error.message}`);
         } finally {
             setLoading(false);
         }
@@ -1269,20 +1285,27 @@ const UserManagementPanel = ({ themeColor, onSimulateLogin, onClose }) => {
 
         setLoading(true);
         try {
-            const res = await fetch('/api/users/sync', {
+            const res = await fetch('/api/users/sync?pw=orzoai', {
                 method: 'POST',
                 headers: { 'x-admin-password': 'orzoai' }
             });
             const data = await res.json();
+            console.log('[Debug] Sync result:', data); // [DEBUG]
+
             if (data.success) {
-                alert(`동기화 완료!\n총 ${data.addedCount}명의 사용자가 추가되었습니다.`);
-                fetchUsers(); // Refresh list
+                if (data.message) alert(data.message);
+                else alert(`동기화 완료!\n총 ${data.addedCount}명의 사용자가 추가되었습니다.`);
+
+                // Force a small delay before refetching to ensure disk write completes
+                setTimeout(() => {
+                    fetchUsers();
+                }, 500);
             } else {
                 alert('동기화 실패: ' + data.message);
             }
         } catch (e) {
             console.error(e);
-            alert('오류가 발생했습니다.');
+            alert('오류가 발생했습니다: ' + e.message);
         } finally {
             setLoading(false);
         }
@@ -1311,7 +1334,7 @@ const UserManagementPanel = ({ themeColor, onSimulateLogin, onClose }) => {
 
     const handleSave = async () => {
         try {
-            const res = await fetch('/api/users', {
+            const res = await fetch('/api/users?pw=orzoai', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1388,7 +1411,7 @@ const UserManagementPanel = ({ themeColor, onSimulateLogin, onClose }) => {
 };
 
 // [NEW] Settings Modal
-const SettingsModal = ({ isOpen, onClose, onUpload, onRefresh, onSimulateLogin }) => {
+const SettingsModal = ({ isOpen, onClose, onUpload, onRefresh, onSimulateLogin, adminPassword }) => {
     const [password, setPassword] = useState('');
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [activeTab, setActiveTab] = useState('general'); // 'general' | 'users'
@@ -1528,6 +1551,7 @@ const SettingsModal = ({ isOpen, onClose, onUpload, onRefresh, onSimulateLogin }
                                     themeColor={THEME.accent}
                                     onSimulateLogin={onSimulateLogin}
                                     onClose={onClose}
+                                    adminPassword={adminPassword}
                                 />
                             )}
                         </div>
@@ -1537,6 +1561,7 @@ const SettingsModal = ({ isOpen, onClose, onUpload, onRefresh, onSimulateLogin }
         </div>
     );
 };
+
 
 // =================================================================================
 // [NEW] Mobile & Desktop Separation
@@ -1832,7 +1857,7 @@ const DashboardMobile = ({
 
 
 // 3. DashboardContainer (Formerly DashboardView)
-const DashboardView = ({ processedData, onSwitchMode, onSimulateLogin }) => {
+const DashboardView = ({ processedData, onSwitchMode, onSimulateLogin, adminPassword }) => {
     // ---- STATE ----
     const [selectedStudentName, setSelectedStudentName] = useState(null);
     const [selectedFolder, setSelectedFolder] = useState('전체');
@@ -1990,6 +2015,7 @@ const DashboardView = ({ processedData, onSwitchMode, onSimulateLogin }) => {
                 onUpload={handleServerUpload}
                 onRefresh={() => window.location.reload()}
                 onSimulateLogin={onSimulateLogin} // [NEW] Pass through
+                adminPassword={adminPassword}
             />
         </>
     );
@@ -2236,8 +2262,8 @@ const Dashboard = ({ data }) => {
                     headers['x-admin-password'] = authPassword || 'orzoai';
                 } else {
                     // For student (or simulated student), send ID and PW (we stored them in user object for simplicity, though insecure for real apps)
-                    headers['x-user-id'] = user.id;
-                    headers['x-user-pw'] = user.pw; // Ideally token, but passing PW as per plan
+                    headers['x-user-id'] = encodeURIComponent(user.id);
+                    headers['x-user-pw'] = encodeURIComponent(user.pw); // Ideally token, but passing PW as per plan
                 }
 
                 // [Special Case] If Admin Simulation, we might be a student role in 'user' state,
@@ -2337,85 +2363,66 @@ const Dashboard = ({ data }) => {
         setMode('dashboard'); // Reset view mode
     };
 
+    // [NEW] Report States for Student View
+    const [showReport, setShowReport] = useState(false);
+    const [reportRecords, setReportRecords] = useState([]);
+
     if (!isAuthenticated) {
         return <LoginOverlay onLogin={handleLogin} />;
     }
 
-    // [UPDATED] Student View Interception
+    // [UPDATED] Student View Interception (Robust Mobile + Desktop Support)
     if (user && user.role === 'student') {
-        // If student, simplify the view. Directly show Report or Detail.
-        // We can create a fake "selectedStudent" from the user info + validData.
+        // [FIX] Ensure filtering works for the specific student
+        // The API likely returned filtered data already, but we robustly select what's there.
+        const studentName = user.name;
+        const studentRecords = validData; // Already filtered by /api/data based on user.id
 
-        // Find best match record to populate student info (if any data)
-        const studentInfo = validData.length > 0 ? validData[0] : { name: user.name };
+        const studentObj = {
+            name: studentName,
+            className: '나의 학습실',
+            records: studentRecords
+        };
 
         return (
-            <div style={{ padding: '40px', background: '#f1f5f9', minHeight: '100vh', display: 'flex', justifyContent: 'center' }}>
-                <div style={{ width: '100%', maxWidth: '1000px', background: 'white', borderRadius: '24px', padding: '40px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', position: 'relative' }}>
-
-                    {/* [NEW] Simulation Banner */}
-                    {isAdminSimulation && (
-                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, background: '#fef3c7', padding: '10px 20px', borderRadius: '24px 24px 0 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#92400e', fontWeight: 'bold' }}>
-                            <span>⚠️ 관리자 모니터링 모드 ({user.name} 시점)</span>
-                            <button onClick={handleExitSimulation} style={{ padding: '6px 12px', background: '#92400e', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem' }}>관리자 복귀 (종료)</button>
-                        </div>
-                    )}
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', paddingBottom: '20px', borderBottom: '2px solid #e2e8f0', marginTop: isAdminSimulation ? '40px' : '0' }}>
-                        <div>
-                            <h1 style={{ margin: 0, fontSize: '2rem', color: '#1e293b' }}>{user.name} 학생 학습 리포트</h1>
-                            <p style={{ margin: '5px 0 0 0', color: '#64748b' }}>개인 학습 분석 및 기록 조회</p>
-                        </div>
-                        <button onClick={() => {
-                            sessionStorage.removeItem('orzo_user');
-                            setIsAuthenticated(false);
-                            setUser(null);
-                        }} style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', color: '#ef4444', fontWeight: 'bold' }}>로그아웃</button>
+            <div style={{ position: 'fixed', inset: 0, zIndex: 1, background: '#f8fafc' }}>
+                {/* Simulation Banner */}
+                {isAdminSimulation && (
+                    <div style={{ position: 'absolute', top: 0, left: 0, right: 0, background: '#fef3c7', padding: '10px 20px', zIndex: 3000, display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#92400e', fontWeight: 'bold' }}>
+                        <span>⚠️ 관리자 모니터링 모드 ({user.name} 시점)</span>
+                        <button onClick={handleExitSimulation} style={{ padding: '6px 12px', background: '#92400e', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem' }}>관리자 복귀 (종료)</button>
                     </div>
+                )}
 
-                    {validData.length > 0 ? (
-                        <div id="report-content">
-                            <div style={{ position: 'relative', zIndex: 1 }}>
-                                <div style={{ marginBottom: '30px', display: 'grid', gap: '15px' }}>
-                                    <h3 style={{ fontSize: '1.2rem', color: '#334155' }}>최근 학습 기록</h3>
-                                    {validData.map((r, idx) => (
-                                        <div key={idx} style={{ padding: '20px', border: '1px solid #e2e8f0', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <div>
-                                                <div style={{ fontWeight: 'bold', fontSize: '1.1rem', marginBottom: '5px' }}>{r.title}</div>
-                                                <div style={{ fontSize: '0.9rem', color: '#64748b' }}>{r.dateStr} | {r.course}</div>
-                                            </div>
-                                            <div style={{ textAlign: 'right' }}>
-                                                <div style={{ fontSize: '1.2rem', fontWeight: '800', color: '#4f46e5' }}>{r.score}점</div>
-                                                <div style={{ fontSize: '0.85rem', color: r.status === '완료' ? '#059669' : '#ef4444' }}>{r.status}</div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
+                {/* Main View - Reuse StudentDetailView which has great mobile support */}
+                <StudentDetailView
+                    student={studentObj}
+                    onClose={() => {
+                        if (isAdminSimulation) {
+                            handleExitSimulation();
+                        } else {
+                            if (confirm('로그아웃 하시겠습니까?')) {
+                                sessionStorage.removeItem('orzo_user');
+                                setIsAuthenticated(false);
+                                setUser(null);
+                            }
+                        }
+                    }}
+                    onOpenReport={(records) => {
+                        setReportRecords(records);
+                        setShowReport(true);
+                    }}
+                    isMobile={window.innerWidth <= 768} // Or use a hook if strictly needed, but window check on render is okay for top level
+                />
 
-                                <div style={{ textAlign: 'center' }}>
-                                    <button
-                                        onClick={() => setMode('student_report')}
-                                        style={{ padding: '15px 30px', background: '#4f46e5', color: 'white', border: 'none', borderRadius: '12px', fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer' }}
-                                    >
-                                        종합 분석 리포트 보기
-                                    </button>
-                                </div>
-                            </div>
-
-                            {mode === 'student_report' && (
-                                <ReportModal
-                                    selectedStudent={{ name: user.name }}
-                                    records={validData}
-                                    onClose={() => setMode('list')}
-                                />
-                            )}
-                        </div>
-                    ) : (
-                        <div style={{ padding: '60px', textAlign: 'center', color: '#94a3b8' }}>
-                            <p>아직 등록된 학습 기록이 없습니다.</p>
-                        </div>
-                    )}
-                </div>
+                {/* Report Modal */}
+                {showReport && (
+                    <ReportModal
+                        selectedStudent={studentObj}
+                        records={reportRecords}
+                        onClose={() => setShowReport(false)}
+                    />
+                )}
             </div>
         );
     }
@@ -2445,8 +2452,8 @@ const Dashboard = ({ data }) => {
 
     return (
         <>
-            {mode === 'dashboard' && <DashboardView processedData={validData} onSwitchMode={() => setMode('presentation')} onSimulateLogin={handleSimulateLogin} />}
-            {mode === 'presentation' && <RealTimeView processedData={validData} onClose={() => setMode('dashboard')} />}
+            {mode === 'dashboard' && <DashboardView processedData={validData} onSwitchMode={() => setMode('presentation')} onSimulateLogin={handleSimulateLogin} adminPassword={authPassword} />}
+            {mode === 'presentation' && <RealTimeView processedData={validData} onClose={() => setMode('dashboard')} authPassword={authPassword} />}
         </>
     );
 };

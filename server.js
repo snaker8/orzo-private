@@ -94,11 +94,11 @@ app.use(express.json());
 app.post('/api/upload', upload.array('files'), (req, res) => {
     try {
         // [SEC] Server-Side Authentication
-        const clientPw = req.headers['x-admin-password'];
+        const clientPw = req.headers['x-admin-password'] || req.query.pw || req.body.pw;
         // [DEBUG] Log Auth details
         // console.log(`[Auth Check] Upload - IP: ${req.ip}, Received: '${clientPw}', Expected: '${ADMIN_PASSWORD}'`);
 
-        if (clientPw !== ADMIN_PASSWORD) {
+        if (!clientPw || clientPw !== ADMIN_PASSWORD) {
             console.warn(`[Auth Failed] Upload - IP: ${req.ip}. Received: '${clientPw}', Expected: '${ADMIN_PASSWORD}'`);
             return res.status(401).json({ success: false, message: 'Authentication failed. Invalid password.' });
         }
@@ -143,38 +143,19 @@ const parseFile = (filePath) => {
             const fileBuffer = fs.readFileSync(filePath);
             let fileContent;
 
-            // [SMART ENCODING DETECTION v2]
-            // Heuristic approaches are safer than try-catch fatal:true which fails on single bad bytes.
+            // [SMART ENCODING DETECTION v2.1]
             try {
-                // 1. Try UTF-8 (non-fatal)
-                const utfDecoder = new TextDecoder('utf-8');
-                const utfString = utfDecoder.decode(fileBuffer);
-
-                // Count replacement characters ( / U+FFFD)
-                // If there are many, it's likely NOT UTF-8 (e.g. CP949 read as UTF-8 produces many )
-                // But wait, CP949 read as UTF-8 produces . 
-                // UTF-8 read as Latin-1 produces ê... (valid chars, no ).
-                // So if we have , it is NOT valid UTF-8.
-                const invalidCount = (utfString.match(/\uFFFD/g) || []).length;
-
-                // If > 1% invalid characters, assume incorrect encoding (likely CP949)
-                // Or if it's a short string and has invalid chars.
-                if (invalidCount > 0 && invalidCount > utfString.length * 0.01) {
-                    throw new Error('Too many invalid UTF-8 chars');
-                }
-
-                // Valid UTF-8 (or close enough)
-                fileContent = utfString;
-
+                // 1. Try UTF-8 first (Strict)
+                const utfDecoder = new TextDecoder('utf-8', { fatal: true });
+                fileContent = utfDecoder.decode(fileBuffer);
             } catch (e) {
-                // 2. Fallback to EUC-KR
+                // 2. Fallback to EUC-KR (Common for Korean Excel CSVs)
                 try {
-                    console.log(`[Parser] Heuristic detected non-UTF-8 for ${path.basename(filePath)}. Trying EUC-KR...`);
-                    const eucDecoder = new TextDecoder('euc-kr');
+                    const eucDecoder = new TextDecoder('euc-kr', { fatal: true });
                     fileContent = eucDecoder.decode(fileBuffer);
                 } catch (e2) {
-                    // 3. Fallback to Latin-1 (Last Resort)
-                    console.error(`[Parser] Encoding failure. Fallback to Latin1.`);
+                    // 3. Fallback to Latin-1
+                    console.warn(`[Parser] Encoding detection failed for ${path.basename(filePath)}. Falling back to Latin1.`);
                     fileContent = fileBuffer.toString('latin1');
                 }
             }
@@ -277,8 +258,8 @@ const loadDataAsync = async () => {
                         ...row,
                         sourceFile: fileName,
                         folderPath: folderPath,
-                        // [FIX] Ensure name exists (from file content OR filename)
-                        name: row.이름 || row.Name || row.학생 || row.성명 || row.name || nameFromFilename
+                        // [FIX] Ensure name exists (from file content OR filename) and Normalize
+                        name: (row.이름 || row.Name || row.학생 || row.성명 || row.name || nameFromFilename).trim().normalize('NFC')
                     }));
 
                     newData.push(...tagged);
@@ -374,76 +355,61 @@ app.post('/api/login', (req, res) => {
 app.get('/api/data', (req, res) => {
     // Auth Headers
     const clientPw = req.headers['x-admin-password']; // Legacy/Admin
-    const userId = req.headers['x-user-id']; // Student ID
+
+    // [FIX] Decode headers to support Korean/Special characters
+    const userId = req.headers['x-user-id'] ? decodeURIComponent(req.headers['x-user-id']) : null;
+    const userPw = req.headers['x-user-pw'] ? decodeURIComponent(req.headers['x-user-pw']) : null;
 
     // 1. Admin Access
     if (clientPw && clientPw.trim().toLowerCase() === ADMIN_PASSWORD.trim().toLowerCase()) {
         return res.json(cachedData);
     }
 
+    // Check fallback auth (Query/Body) for Admin
+    const fallbackPw = req.query.pw || req.body.pw;
+    if (fallbackPw && fallbackPw.trim().toLowerCase() === ADMIN_PASSWORD.trim().toLowerCase()) {
+        return res.json(cachedData);
+    }
+
     // 2. Student Access
-    if (userId) {
-        const users = getUsers();
-        // Trust the client to send the right ID after login? 
-        // Ideally we verify a token, but for simplicity we'll check against the known user list 
-        // AND maybe re-verify password if sent, but here we assume if they have the ID they logged in.
-        // BETTER: The client should technically send credentials or a token. 
-        // Let's expect 'x-user-pw' for basic security if not using sessions.
-        const userPw = req.headers['x-user-pw'];
-        const user = users.find(u => u.id === userId && u.pw === userPw);
+    const users = getUsers(); // [FIX] Load users
+    const user = users.find(u => u.id === userId && u.pw === userPw);
 
-        if (user) {
-            if (user.role === 'admin') return res.json(cachedData);
+    if (user) {
+        if (user.role === 'admin') return res.json(cachedData);
 
-            // Filter data for student
-            // [Strategies]
-            // 1. Exact Name Match
-            // 2. Contains Name (risky for 'Kim')
-            const studentData = cachedData.filter(item => {
-                // Ensure item.name exists and matches user.name
-                return item.name && item.name.trim() === user.name.trim();
-            });
-            console.log(`[Auth] Serving ${studentData.length} records for student: ${user.name}`);
-            return res.json(studentData);
-        }
+        // Filter data for student
+        // [Strategies]
+        // 1. Exact Name Match (with Unicode Normalization)
+        const targetName = user.name.trim().normalize('NFC');
+        console.log(`[Auth] Filtering for student: '${targetName}'`);
+
+        const studentData = cachedData.filter(item => {
+            // Ensure item.name exists 
+            if (!item.name) return false;
+            const itemName = String(item.name).trim().normalize('NFC');
+            return itemName === targetName;
+        });
+        console.log(`[Auth] Serving ${studentData.length} records for student: ${user.name}`);
+        return res.json(studentData);
     }
 
     console.warn(`[Auth Failed] Data Access - IP: ${req.ip}`);
     return res.status(401).json({ success: false, message: 'Authentication failed.' });
 });
 
-// [NEW] Serve Static Files (Production/Deployment)
-const DIST_DIR = path.join(__dirname, 'dist');
-if (fs.existsSync(DIST_DIR)) {
-    console.log(`[Server] Serving static files from ${DIST_DIR}`);
-    app.use(express.static(DIST_DIR));
-
-    // SPA Catch-all -> index.html
-    app.get('*', (req, res) => {
-        res.sendFile(path.join(DIST_DIR, 'index.html'));
-    });
-} else {
-    // Fallback for Dev only
-    app.get('/', (req, res) => {
-        res.send("API Server Running. (Frontend build not found, please run 'npm run build')");
-    });
-}
-
-
 // [NEW] User Management Endpoints
 app.get('/api/users', (req, res) => {
-    const clientPw = req.headers['x-admin-password'];
+    const clientPw = req.headers['x-admin-password'] || req.query.pw;
     if (!clientPw || clientPw !== ADMIN_PASSWORD) {
         return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
     const users = getUsers();
-    // Don't send passwords back? Or sending them for simple management since it's admin only.
-    // Let's send them for simplicity so admin can see/edit them.
     res.json(users);
 });
 
 app.post('/api/users', (req, res) => {
-    const clientPw = req.headers['x-admin-password'];
+    const clientPw = req.headers['x-admin-password'] || req.query.pw || req.body.pw;
     if (!clientPw || clientPw !== ADMIN_PASSWORD) {
         return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
@@ -453,14 +419,8 @@ app.post('/api/users', (req, res) => {
         if (!Array.isArray(newUsers)) {
             return res.status(400).json({ success: false, message: 'Invalid data format' });
         }
-
-        // Validation check
-        // Ensure admin exists?
-        // Let's just write whatever is sent, assuming frontend does validation.
-
         fs.writeFileSync(USERS_FILE, JSON.stringify(newUsers, null, 2), 'utf8');
         console.log(`[Users] Updated users.json. Total count: ${newUsers.length}`);
-
         res.json({ success: true, count: newUsers.length });
     } catch (e) {
         console.error('[Users] Update failed', e);
@@ -469,13 +429,12 @@ app.post('/api/users', (req, res) => {
 });
 
 app.post('/api/users/sync', async (req, res) => {
-    const clientPw = req.headers['x-admin-password'];
+    const clientPw = req.headers['x-admin-password'] || req.query.pw || req.body.pw;
     if (!clientPw || clientPw !== ADMIN_PASSWORD) {
         return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
 
     try {
-        // [FIX] Ensure data is loaded if cache is empty
         if (cachedData.length === 0) {
             console.log('[Users] Cache empty. Forcing scan before sync...');
             await loadDataAsync();
@@ -484,11 +443,8 @@ app.post('/api/users/sync', async (req, res) => {
         const currentUsers = getUsers();
         const existingIds = new Set(currentUsers.map(u => u.id));
         const addedUsers = [];
-
-        // Scan cachedData for unique names
         const studentNames = new Set();
         cachedData.forEach(item => {
-            // Support multiple name fields
             const name = item.이름 || item.Name || item.학생 || item.성명 || item.name;
             if (name && typeof name === 'string' && name.trim().length > 0) {
                 studentNames.add(name.trim());
@@ -498,8 +454,7 @@ app.post('/api/users/sync', async (req, res) => {
         console.log(`[Users] Found ${studentNames.size} unique students in ${cachedData.length} records.`);
 
         studentNames.forEach(name => {
-            // ID = Name (as requested), PW = '1234'
-            if (!existingIds.has(name)) { // ID uniqueness check
+            if (!existingIds.has(name)) {
                 const newUser = {
                     id: name,
                     pw: '1234',
@@ -522,13 +477,34 @@ app.post('/api/users/sync', async (req, res) => {
             addedCount: addedUsers.length,
             totalCount: currentUsers.length,
             scannedRecords: cachedData.length,
-            foundStudents: studentNames.size
+            foundStudents: studentNames.size,
+            message: `동기화 완료. ${cachedData.length}개 데이터에서 총 ${studentNames.size}명의 학생을 확인했습니다. (새로 추가된 사용자: ${addedUsers.length}명)\n이미 모든 사용자가 등록되어 있을 수 있습니다.`
         });
     } catch (e) {
         console.error('[Users] Sync failed', e);
         res.status(500).json({ success: false, message: 'Failed to sync users' });
     }
 });
+
+// [NEW] Serve Static Files (Production/Deployment)
+const DIST_DIR = path.join(__dirname, 'dist');
+if (fs.existsSync(DIST_DIR)) {
+    console.log(`[Server] Serving static files from ${DIST_DIR}`);
+    app.use(express.static(DIST_DIR));
+
+    // SPA Catch-all -> index.html
+    app.get('*', (req, res) => {
+        res.sendFile(path.join(DIST_DIR, 'index.html'));
+    });
+} else {
+    // Fallback for Dev only
+    app.get('/', (req, res) => {
+        res.send("API Server Running. (Frontend build not found, please run 'npm run build')");
+    });
+}
+
+
+
 
 app.listen(PORT, '0.0.0.0', () => { // [UPDATED] Listen on all interfaces
     console.log(`=========================================`);

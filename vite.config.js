@@ -11,7 +11,7 @@ export default defineConfig({
     ],
     server: {
         host: true, // [NEW] 외부 접속 허용 (LAN 공유)
-        allowedHosts: true, // [FIX] 터널링 도메인 접속 허용 (Block Host 해결)
+
         proxy: {
             // 프론트엔드에서 /api 로 요청하면 -> 백엔드(3000번)로 전달
             '/api': {
