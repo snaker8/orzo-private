@@ -10,6 +10,7 @@ import {
     GraduationCap, LineChart, PieChart, MonitorPlay, Maximize, X, Settings, Check, BookOpen, Timer
 } from 'lucide-react';
 import { MOCK_DATA } from './mockData';
+import SplashScreen from './SplashScreen';
 
 // =================================================================================
 // [1] 베이스 유틸리티 & 테마
@@ -2021,8 +2022,6 @@ const DashboardView = ({ processedData, onSwitchMode, onSimulateLogin, adminPass
     );
 };
 
-// [NEW] Import SplashScreen
-import SplashScreen from './SplashScreen';
 
 const Dashboard = ({ data }) => {
     // [UI] Splash Screen State
