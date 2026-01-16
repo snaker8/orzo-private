@@ -464,7 +464,7 @@ const RealTimeView = ({ processedData, onClose, authPassword }) => {
     );
 
     return (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: '#f8fafc', color: '#1e293b', overflow: 'hidden', zIndex: 9999, fontFamily: 'Pretendard, sans-serif' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100dvh', background: '#f8fafc', color: '#1e293b', overflow: 'hidden', zIndex: 9999, fontFamily: 'Pretendard, sans-serif' }}>
 
             {/* Header - Transparent/Modified for Intro, Standard for Classes */}
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '90px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 40px', background: currentSlide.type === 'intro' ? 'rgba(255, 255, 255, 0.0)' : 'rgba(255, 255, 255, 0.95)', backdropFilter: currentSlide.type === 'intro' ? 'none' : 'blur(10px)', borderBottom: currentSlide.type === 'intro' ? 'none' : '1px solid #e2e8f0', zIndex: 10, transition: 'all 0.5s' }}>
@@ -568,7 +568,7 @@ const RealTimeView = ({ processedData, onClose, authPassword }) => {
                             frameBorder="0"
                             width="100%"
                             height="100%"
-                            style={{ width: '100vw', height: '100vh', border: 'none' }}
+                            style={{ width: '100vw', height: '100dvh', border: 'none' }}
                         ></iframe>
 
                         <div style={{
@@ -601,7 +601,7 @@ const RealTimeView = ({ processedData, onClose, authPassword }) => {
 
                 {/* 2. If Class Slide */}
                 {currentSlide.type === 'class' && (
-                    <div style={{ padding: '110px 40px 40px 40px', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gridTemplateRows: `repeat(${Math.ceil(currentSlide.items.length / 4) > 2 ? 3 : 2}, 1fr)`, gap: '24px', height: '100vh', boxSizing: 'border-box' }}>
+                    <div style={{ padding: '110px 40px 40px 40px', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gridTemplateRows: `repeat(${Math.ceil(currentSlide.items.length / 4) > 2 ? 3 : 2}, 1fr)`, gap: '24px', height: '100dvh', boxSizing: 'border-box' }}>
                         {currentSlide.items.map((student, idx) => {
                             const styles = getCourseBadgeStyle(student.course);
                             return (
@@ -994,7 +994,7 @@ const StudentDetailView = ({ student, onClose, onOpenReport, isMobile }) => {
     }, [filteredRecords]);
 
     return (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: '#f8fafc', zIndex: 1000, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100dvh', background: '#f8fafc', zIndex: 1000, display: 'flex', flexDirection: 'column' }}>
             {/* Header */}
             <div style={{ height: '70px', padding: '0 30px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${THEME.border}`, background: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.03)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
@@ -1586,7 +1586,7 @@ const DashboardDesktop = ({
     reportRecords, setReportRecords
 }) => {
     return (
-        <div className="dashboard-container" style={{ display: 'flex', height: '100vh', background: '#f1f5f9', overflow: 'hidden' }}>
+        <div className="dashboard-container" style={{ display: 'flex', height: '100dvh', background: '#f1f5f9', overflow: 'hidden' }}>
             <div className="sidebar" style={{ width: '280px', background: 'white', borderRight: `1px solid ${THEME.border}`, padding: '25px', display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '40px', paddingLeft: '10px' }}>
                     <div style={{ width: '40px', height: '40px', background: THEME.accent, borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 6px -1px rgba(79, 70, 229, 0.3)' }}><LayoutDashboard color="white" size={24} /></div>
