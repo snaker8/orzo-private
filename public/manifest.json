@@ -2,8 +2,8 @@
     "name": "과사람 의대관 학습보고서",
     "short_name": "과사람 의대관",
     "description": "과사람 의대관 프리미엄 수학 전문 학원 실시간 학습 모니터링",
-    "theme_color": "#ffffff",
-    "background_color": "#ffffff",
+    "theme_color": "#0f172a",
+    "background_color": "#0f172a",
     "display": "standalone",
     "orientation": "portrait",
     "icons": [
