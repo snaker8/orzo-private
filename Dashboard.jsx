@@ -561,14 +561,16 @@ const RealTimeView = ({ processedData, onClose, authPassword }) => {
 
                 {/* 1. If Intro Slide (Spline) */}
 
+                {/* 1. If Intro Slide (Spline) */}
+
                 {currentSlide.type === 'intro' && (
-                    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+                    <div style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
                         <iframe
                             src="https://my.spline.design/claritystream-mDXSTu56HgZ7qZtc2R9gBFBc/"
                             frameBorder="0"
                             width="100%"
                             height="100%"
-                            style={{ width: '100vw', height: '100dvh', border: 'none' }}
+                            style={{ width: '100vw', height: 'calc(100dvh + 60px)', border: 'none', position: 'absolute', top: 0, left: 0 }}
                         ></iframe>
 
                         <div style={{
@@ -593,10 +595,6 @@ const RealTimeView = ({ processedData, onClose, authPassword }) => {
                                 filter: 'drop-shadow(0 0 30px rgba(165, 180, 252, 0.3)) drop-shadow(0 4px 6px rgba(0,0,0,0.5))'
                             }}>오르조 과제 현황</h1>
                         </div>
-
-                        {/* Mask to hide Spline Logo (Bottom Right) */}
-                        {/* Mask to hide Spline Logo (Bottom Right) */}
-                        <div style={{ position: 'absolute', bottom: '0', right: '0', width: '120px', height: '40px', background: '#000000', zIndex: 50, pointerEvents: 'none' }}></div>
                     </div>
                 )}
 
