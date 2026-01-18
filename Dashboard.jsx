@@ -1798,7 +1798,7 @@ const DashboardDesktop = ({
     reportRecords, setReportRecords,
     user // [NEW] Shared Prop
 }) => {
-    const isMainAdmin = user?.id === 'admin';
+    const isMainAdmin = user?.role === 'admin';
     return (
         <div className="dashboard-container" style={{ display: 'flex', height: '100dvh', background: '#f1f5f9', overflow: 'hidden' }}>
             <div className="sidebar" style={{ width: '280px', background: 'white', borderRight: `1px solid ${THEME.border}`, padding: '25px', display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto' }}>
@@ -1922,7 +1922,7 @@ const DashboardMobile = ({
 }) => {
     // Mobile Tab State
     const actionTab = useState('home'); // home, search, menu
-    const isMainAdmin = user?.id === 'admin';
+    const isMainAdmin = user?.role === 'admin';
     const [activeTab, setActiveTab] = useState('home'); // home, search, menu
 
     return (
