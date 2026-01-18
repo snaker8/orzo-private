@@ -2112,8 +2112,12 @@ const DashboardView = ({ processedData, onSwitchMode, onSimulateLogin, adminPass
     const [selectedFolder, setSelectedFolder] = useState('전체');
     const [selectedClass, setSelectedClass] = useState('전체');
     const [searchQuery, setSearchQuery] = useState('');
-    const [startDate, setStartDate] = useState('');
-    const [endDate, setEndDate] = useState('');
+    const [startDate, setStartDate] = useState(() => {
+        const d = new Date();
+        d.setMonth(d.getMonth() - 1);
+        return d.toISOString().split('T')[0];
+    });
+    const [endDate, setEndDate] = useState(() => new Date().toISOString().split('T')[0]);
     const [showReport, setShowReport] = useState(false);
     const [reportRecords, setReportRecords] = useState(null);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false); // [NEW] Settings Modal State
@@ -2128,25 +2132,63 @@ const DashboardView = ({ processedData, onSwitchMode, onSimulateLogin, adminPass
     }, []);
 
     // ---- LOGIC (Copied from original) ----
-    const handleServerUpload = async (e, passwordOverride = null) => {
-        // ... (Original Upload Logic) ...
+    const students = useMemo(() => {
+        if (!processedData) return [];
+        const map = new Map();
+        processedData.forEach(item => {
+            if (!item.name) return;
+            if (!map.has(item.name)) {
+                map.set(item.name, {
+                    name: item.name,
+                    className: item.className || 'Unknown',
+                    avgScore: 0,
+                    courseList: new Set(),
+                    totalRecords: 0
+                });
+            }
+            const s = map.get(item.name);
+            s.totalRecords++;
+            if (item.score !== undefined && item.score !== null) {
+                // Approximate avg (sum/count would be better but keeping simple)
+                s.avgScore = Math.round(((s.avgScore * (s.totalRecords - 1)) + Number(item.score)) / s.totalRecords);
+            }
+            if (item.course) s.courseList.add(item.course);
+        });
+        return Array.from(map.values()).map(s => ({ ...s, courseList: Array.from(s.courseList) }));
+    }, [processedData]);
+
+    const folders = useMemo(() => {
+        if (!processedData) return ['전체'];
+        const set = new Set(processedData.map(d => d.folder).filter(Boolean));
+        return ['전체', ...Array.from(set)];
+    }, [processedData]);
+
+    const classes = useMemo(() => {
+        if (!processedData) return ['전체'];
+        const set = new Set(processedData.map(d => d.className).filter(Boolean));
+        return ['전체', ...Array.from(set)];
+    }, [processedData]);
+
+    const handleServerUpload = async (e) => {
         const files = e.target.files;
         if (!files || files.length === 0) return;
 
-        let pw = passwordOverride;
+        const pw = adminPassword || prompt("관리자 비밀번호를 입력하세요 (기본: orzoai)");
         if (!pw) {
-            pw = prompt("관리자 비밀번호를 입력하세요 (기본: orzoai)");
+            alert("비밀번호가 필요합니다.");
+            return;
         }
 
-        if (pw !== "orzoai") { alert("비밀번호가 올바르지 않습니다."); e.target.value = ''; return; }
         const formData = new FormData();
-        Array.from(files).forEach(file => {
-            const rawPath = file.webkitRelativePath || file.name;
-            const uploadName = rawPath.replace(/\//g, '__ORD__').replace(/\\/g, '__ORD__');
-            formData.append('files', file, uploadName);
-        });
-        const firstFile = Array.from(files)[0];
-        const debugName = (firstFile.webkitRelativePath || firstFile.name).replace(/\//g, '__ORD__').replace(/\\/g, '__ORD__');
+        formData.append('pw', pw);
+        for (let i = 0; i < files.length; i++) {
+            // [FIX] Korean Filename Handling
+            // const file = files[i];
+            // const newName = encodeURIComponent(file.name);
+            // formData.append('files', file, newName);
+            formData.append('files', files[i]);
+        }
+
         try {
             const res = await fetch('/api/upload', { method: 'POST', headers: { 'x-admin-password': pw }, body: formData });
             const data = await res.json();
@@ -2165,26 +2207,16 @@ const DashboardView = ({ processedData, onSwitchMode, onSimulateLogin, adminPass
         setEndDate(new Date().toISOString().split('T')[0]);
     };
 
-    const dateInitialized = useRef(false);
     useEffect(() => {
-        if (!dateInitialized.current && processedData && processedData.length > 0) {
-            const sorted = [...processedData].sort((a, b) => a.dateObj - b.dateObj);
-            const today = new Date();
-            const oneMonthAgo = new Date();
-            oneMonthAgo.setMonth(today.getMonth() - 1);
-            const earliestDateObj = sorted[0].dateObj;
-            const startDateObj = earliestDateObj > oneMonthAgo ? earliestDateObj : oneMonthAgo;
-            const y = startDateObj.getFullYear();
-            const m = String(startDateObj.getMonth() + 1).padStart(2, '0');
-            const d = String(startDateObj.getDate()).padStart(2, '0');
-            setStartDate(`${y}-${m}-${d}`);
-            const endY = today.getFullYear();
-            const endM = String(today.getMonth() + 1).padStart(2, '0');
-            const endD = String(today.getDate()).padStart(2, '0');
-            setEndDate(`${endY}-${endM}-${endD}`);
-            dateInitialized.current = true;
+        // [FIX] Default to 1 Month always, no need to auto-expand to all data
+        // Just ensure it's not overwritten by empty strings
+        if (startDate === '' || endDate === '') {
+            const d = new Date();
+            d.setMonth(d.getMonth() - 1);
+            setStartDate(d.toISOString().split('T')[0]);
+            setEndDate(new Date().toISOString().split('T')[0]);
         }
-    }, [processedData]);
+    }, []);
 
     const filtered = useMemo(() => {
         if (!processedData) return [];
