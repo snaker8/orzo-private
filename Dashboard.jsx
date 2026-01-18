@@ -251,12 +251,7 @@ const LoginOverlay = ({ onLogin, onRegister }) => {
     const handleSubmit = (e) => {
         e.preventDefault();
         if (mode === 'login') {
-            onLogin(id, pw).then((success) => {
-                if (success) {
-                    // [NEW] Trigger Transition Splash
-                    console.log("Login Success: Triggering Transition Splash");
-                }
-            });
+            onLogin(id, pw);
         } else {
             onRegister(id, pw, name);
             // Switch back to login or stay? logic handles success alert.
@@ -2314,9 +2309,10 @@ const DashboardView = ({ processedData, onSwitchMode, onSimulateLogin, adminPass
 
 const Dashboard = ({ data }) => {
     // [UI] Splash Screen State
-    const [showSplash, setShowSplash] = useState(false); // [MOD] Default false (Show Login first)
+    const [showSplash, setShowSplash] = useState(true); // [REVERT] Show Splash First
     // [PERF] Deferred Rendering State
-    const [isAppLoaded, setIsAppLoaded] = useState(true); // [MOD] Default true so LoginOverlay shows immediately
+    const [isAppLoaded, setIsAppLoaded] = useState(false); // [REVERT]
+
 
     // [AUTH]
     const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -2701,34 +2697,23 @@ const Dashboard = ({ data }) => {
     // [PERF] Handle Splash Dismiss
     const handleSplashDismiss = () => {
         setShowSplash(false);
-        // setIsAppLoaded(true); // Already loaded
-    };
-
-    const handleLoginWrapper = async (id, pw) => {
-        const success = await handleLogin(id, pw);
-        if (success) {
-            setShowSplash(true); // Trigger Transition Splash
-        }
-        return success;
+        setIsAppLoaded(true);
     };
 
     return (
         <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
             {showSplash && (
-                <SplashScreen
-                    onDismiss={handleSplashDismiss}
-                    mode={isAuthenticated ? 'transition' : 'startup'} // [NEW] Mode based on auth
-                />
+                <SplashScreen onDismiss={handleSplashDismiss} />
             )}
 
             {/* [PERF] Deferred Rendering: Only render Main App when Splash is gone/going */}
             {(!showSplash || isAppLoaded) && (
                 <div style={{
                     width: '100%', height: '100%',
-                    opacity: 1 // Always visible underneath
+                    opacity: showSplash ? 0 : 1
                 }}>
                     {!isAuthenticated ? (
-                        <LoginOverlay onLogin={handleLoginWrapper} onRegister={onRegister} />
+                        <LoginOverlay onLogin={handleLogin} onRegister={onRegister} />
                     ) : (
                         <DashboardView
                             processedData={validData} // Optimized Data
