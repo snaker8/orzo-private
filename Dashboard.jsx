@@ -239,15 +239,23 @@ const getScore = (item) => {
     return safeNumber(findValue(item, ['점수', 'Score', '맞은', '정답']));
 };
 
-// [NEW] Login Component
-const LoginOverlay = ({ onLogin }) => {
+// [NEW] Login Component (with Registration)
+const LoginOverlay = ({ onLogin, onRegister }) => {
+    const [mode, setMode] = useState('login'); // 'login' | 'register'
     const [id, setId] = useState('');
     const [pw, setPw] = useState('');
     const [error, setError] = useState(false);
 
+    const [name, setName] = useState('');     // For register
+
     const handleSubmit = (e) => {
         e.preventDefault();
-        onLogin(id, pw);
+        if (mode === 'login') {
+            onLogin(id, pw);
+        } else {
+            onRegister(id, pw, name);
+            // Switch back to login or stay? logic handles success alert.
+        }
     };
 
     return (
@@ -265,10 +273,24 @@ const LoginOverlay = ({ onLogin }) => {
                     과사람 의대관
                 </h1>
                 <p style={{ margin: '0 0 30px 0', color: '#64748b', fontSize: '0.95rem' }}>
-                    아이디와 비밀번호를 입력하세요.
+                    {mode === 'login' ? '아이디와 비밀번호를 입력하세요.' : '선생님 회원가입 신청'}
                 </p>
 
                 <form onSubmit={handleSubmit}>
+                    {mode === 'register' && (
+                        <input
+                            type="text"
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            placeholder="이름 (실명)"
+                            style={{
+                                width: '100%', padding: '16px', borderRadius: '12px',
+                                border: '1px solid #e2e8f0',
+                                background: '#f8fafc', fontSize: '1.1rem', marginBottom: '10px',
+                                outline: 'none', transition: 'all 0.2s'
+                            }}
+                        />
+                    )}
                     <input
                         type="text"
                         value={id}
@@ -304,8 +326,20 @@ const LoginOverlay = ({ onLogin }) => {
                             boxShadow: '0 4px 6px -1px rgba(79, 70, 229, 0.2)'
                         }}
                     >
-                        접속하기
+                        {mode === 'login' ? '접속하기' : '가입 신청하기'}
                     </button>
+
+                    <div style={{ marginTop: '20px', fontSize: '0.9rem', color: '#64748b' }}>
+                        {mode === 'login' ? (
+                            <>
+                                선생님이신가요? <span onClick={() => { setMode('register'); setError(false); }} style={{ color: '#4f46e5', fontWeight: 'bold', cursor: 'pointer' }}>회원가입 신청</span>
+                            </>
+                        ) : (
+                            <>
+                                이미 계정이 있으신가요? <span onClick={() => { setMode('login'); setError(false); }} style={{ color: '#4f46e5', fontWeight: 'bold', cursor: 'pointer' }}>로그인하기</span>
+                            </>
+                        )}
+                    </div>
                 </form>
             </div>
         </div>
@@ -1468,10 +1502,22 @@ const UserManagementPanel = ({ themeColor, onSimulateLogin, onClose, adminPasswo
                     <tbody>
                         {users.map(u => (
                             <tr key={u.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                <td style={{ padding: '8px' }}>{u.name}</td>
+                                <td style={{ padding: '8px' }}>
+                                    {u.name}
+                                    {u.role === 'teacher' && <span style={{ fontSize: '0.7em', marginLeft: '5px', padding: '2px 5px', background: '#e0e7ff', color: '#4338ca', borderRadius: '4px' }}>T</span>}
+                                </td>
                                 <td style={{ padding: '8px' }}>{u.id}</td>
                                 <td style={{ padding: '8px', color: '#94a3b8' }}>{u.pw}</td>
                                 <td style={{ padding: '8px', textAlign: 'center', display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                                    {/* Approval Button for Teachers */}
+                                    {u.role === 'teacher' && u.approved === false && (
+                                        <button onClick={() => {
+                                            const updated = users.map(user => user.id === u.id ? { ...user, approved: true } : user);
+                                            setUsers(updated);
+                                            setIsDirty(true);
+                                        }} style={{ padding: '4px 8px', background: '#dcfce7', color: '#15803d', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}>승인</button>
+                                    )}
+
                                     {u.role !== 'admin' && (
                                         <>
                                             <button onClick={() => { onSimulateLogin(u); onClose(); }} style={{ padding: '4px 8px', background: '#e0f2fe', color: '#0284c7', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}>접속</button>
@@ -1517,6 +1563,12 @@ const SettingsModal = ({ isOpen, onClose, onUpload, onRefresh, onSimulateLogin, 
             setActiveTab('general');
         }
     }, [isOpen]);
+
+    // [NEW] Change Password Modal Logic (For User) - This component handles settings password.
+    // We need a separate UserChangePasswordModal for the actual logged-in user.
+    // BUT the prompt says "Student login -> personal password change".
+    // "Teacher login -> register via signup".
+    // This SettingsModal is for ADMIN only (global settings).
 
     const getSettingsPw = () => localStorage.getItem('orzo_settings_pw') || 'orzoai';
 
@@ -1704,9 +1756,11 @@ const DashboardDesktop = ({
                 </div>
 
                 <div style={{ marginTop: 'auto', borderTop: `1px solid ${THEME.border}`, paddingTop: '20px' }}>
-                    <button onClick={() => setIsSettingsOpen(true)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%', padding: '12px', borderRadius: '12px', background: 'white', color: THEME.primary, fontWeight: '700', cursor: 'pointer', marginBottom: '10px', border: `1px solid ${THEME.border}`, boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                        <Settings size={18} /> 설정 및 관리
-                    </button>
+                    {isMainAdmin && (
+                        <button onClick={() => setIsSettingsOpen(true)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%', padding: '12px', borderRadius: '12px', background: 'white', color: THEME.primary, fontWeight: '700', cursor: 'pointer', marginBottom: '10px', border: `1px solid ${THEME.border}`, boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                            <Settings size={18} /> 설정 및 관리
+                        </button>
+                    )}
                     <button onClick={() => { setSelectedFolder('전체'); setSelectedClass('전체'); }} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%', padding: '12px', borderRadius: '12px', background: THEME.primary, color: 'white', fontWeight: '700', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}><LayoutDashboard size={18} /> 전체 보기</button>
                 </div>
             </div>
@@ -1719,6 +1773,8 @@ const DashboardDesktop = ({
                         <div style={{ fontSize: '2.5rem', fontWeight: '900', color: THEME.primary, letterSpacing: '-1px', lineHeight: 1 }}>오르조 학습 분석 모니터</div>
                     </div>
                     <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                        {/* [NEW] Change Password Button (Desktop) */}
+                        <ChangePasswordButton user={user} />
                         <button onClick={onSwitchMode} style={{ padding: '10px 20px', background: THEME.secondary, color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold' }}>실시간 모드 전환</button>
                         <div style={{ textAlign: 'right' }}><div style={{ fontSize: '2rem', fontWeight: '800', color: THEME.primary }}>{students.length}</div><div style={{ fontSize: '0.9rem', color: THEME.secondary, fontWeight: '600' }}>Students</div></div>
                     </div>
@@ -1894,6 +1950,19 @@ const DashboardMobile = ({
                         <div style={{ marginTop: '20px', padding: '15px', background: '#f1f5f9', borderRadius: '12px', fontSize: '0.85rem', color: '#94a3b8', lineHeight: '1.5' }}>
                             모바일 모드에서는 일부 관리자 기능이 제한될 수 있습니다. 전체 기능을 사용하려면 PC에서 접속해주세요.
                         </div>
+
+                        {/* [NEW] Password Change for Mobile (Everyone) */}
+                        <div style={{ marginTop: '20px' }}>
+                            <ChangePasswordButton user={user} />
+                        </div>
+
+                        {/* [NEW] Settings Button only for Admin */}
+                        {isMainAdmin && (
+                            <div onClick={() => setIsSettingsOpen(true)} style={{ padding: '16px', display: 'flex', alignItems: 'center', gap: '12px', fontSize: '1rem', fontWeight: '600', color: THEME.primary, cursor: 'pointer', borderTop: `1px solid ${THEME.border}` }}>
+                                <Settings size={20} color={THEME.primary} />
+                                관리자 설정
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
@@ -2083,7 +2152,10 @@ const DashboardView = ({ processedData, onSwitchMode, onSimulateLogin, adminPass
         onSwitchMode,
         selectedStudent, setSelectedStudentName,
         showReport, setShowReport,
-        reportRecords, setReportRecords // [FIX] Added setter
+        selectedStudent, setSelectedStudentName,
+        showReport, setShowReport,
+        reportRecords, setReportRecords, // [FIX] Added setter
+        user // [NEW] Shared Prop
     };
 
     return (
@@ -2368,6 +2440,18 @@ const Dashboard = ({ data }) => {
 
                 if (response.status === 401) {
                     console.warn(`[Auth] 401 Unauthorized from ${strategyName}`);
+
+                    // [IMPORTANT] Check if it's an approval error message
+                    try {
+                        const errClone = response.clone();
+                        const errJson = await errClone.json();
+                        if (errJson.message && errJson.message.includes('승인 대기')) {
+                            alert(errJson.message);
+                            setIsAuthenticated(false);
+                            return true; // Stop trying
+                        }
+                    } catch (e) { }
+
                     alert("인증 정보가 만료되었습니다. 다시 로그인해주세요.");
                     sessionStorage.removeItem('orzo_user');
                     sessionStorage.removeItem('orzo_auth_pw');
@@ -2437,6 +2521,26 @@ const Dashboard = ({ data }) => {
         }
     };
 
+    // [NEW] Register Handler
+    const onRegister = async (id, pw, name) => {
+        try {
+            const res = await fetch('/api/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, pw, name })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert(data.message);
+                window.location.reload();
+            } else {
+                alert(data.message);
+            }
+        } catch (e) {
+            alert("가입 요청 중 오류가 발생했습니다.");
+        }
+    };
+
     // [NEW] Simulate Login Handler (Passed to Settings)
     const handleSimulateLogin = (targetUser) => {
         if (!confirm(`${targetUser.name} 학생으로 접속하여 모니터링 하시겠습니까?`)) return;
@@ -2486,7 +2590,7 @@ const Dashboard = ({ data }) => {
                     opacity: showSplash ? 0 : 1
                 }}>
                     {!isAuthenticated ? (
-                        <LoginOverlay onLogin={handleLogin} />
+                        <LoginOverlay onLogin={handleLogin} onRegister={onRegister} />
                     ) : (
                         <DashboardView
                             processedData={validData} // Optimized Data
@@ -2498,6 +2602,54 @@ const Dashboard = ({ data }) => {
                 </div>
             )}
         </div>
+    );
+};
+
+// [NEW] Independent Password Change Component
+const ChangePasswordButton = ({ user }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [oldPw, setOldPw] = useState('');
+    const [newPw, setNewPw] = useState('');
+
+    const handleChange = async () => {
+        if (!oldPw || !newPw) { alert('모든 필드를 입력하세요.'); return; }
+        try {
+            const res = await fetch('/api/change-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: user.id, oldPw, newPw })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert('비밀번호가 변경되었습니다. 다시 로그인해주세요.');
+                window.location.reload();
+            } else {
+                alert(data.message);
+            }
+        } catch (e) {
+            alert('오류가 발생했습니다.');
+        }
+    };
+
+    return (
+        <>
+            <button onClick={() => setIsOpen(true)} style={{ padding: '8px 12px', background: 'none', border: '1px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer', fontSize: '0.85rem', color: '#64748b' }}>
+                비밀번호 변경
+            </button>
+            {isOpen && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ background: 'white', padding: '25px', borderRadius: '16px', width: '300px' }}>
+                        <h3 style={{ margin: '0 0 15px 0' }}>비밀번호 변경</h3>
+                        <input type="password" placeholder="현재 비밀번호" value={oldPw} onChange={e => setOldPw(e.target.value)} style={{ width: '100%', padding: '10px', marginBottom: '10px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                        <input type="password" placeholder="새 비밀번호" value={newPw} onChange={e => setNewPw(e.target.value)} style={{ width: '100%', padding: '10px', marginBottom: '20px', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                        <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                            <button onClick={() => setIsOpen(false)} style={{ padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}>취소</button>
+                            <button onClick={handleChange} style={{ padding: '8px 16px', borderRadius: '8px', background: '#4f46e5', color: 'white', border: 'none', cursor: 'pointer' }}>변경</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
     );
 };
 

@@ -345,10 +345,76 @@ app.post('/api/login', (req, res) => {
     // 2. Check Users (including Multi-Admins)
     const user = users.find(u => u.id === id && u.pw === pw);
     if (user) {
+        // [CHECK] Teacher Approval
+        if (user.role === 'teacher' && user.approved === false) {
+            return res.status(401).json({ success: false, message: '관리자 승인 대기 중입니다. 승인 후 이용 가능합니다.' });
+        }
         return res.json({ success: true, user: { id: user.id, name: user.name, role: user.role } });
     }
 
     return res.status(401).json({ success: false, message: '아이디 또는 비밀번호가 올바르지 않습니다.' });
+});
+
+// [NEW] Register Endpoint (Teacher)
+app.post('/api/register', (req, res) => {
+    const { id, pw, name } = req.body;
+    if (!id || !pw || !name) {
+        return res.status(400).json({ success: false, message: '모든 필드를 입력해주세요.' });
+    }
+
+    const users = getUsers();
+    if (users.some(u => u.id === id)) {
+        return res.status(400).json({ success: false, message: '이미 존재하는 아이디입니다.' });
+    }
+
+    const newUser = {
+        id,
+        pw,
+        name,
+        role: 'teacher',
+        approved: false // Default to false for teachers
+    };
+
+    users.push(newUser);
+
+    try {
+        fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
+        console.log(`[Auth] New teacher registered: ${name} (${id})`);
+        res.json({ success: true, message: '가입 신청이 완료되었습니다. 관리자 승인 후 로그인할 수 있습니다.' });
+    } catch (e) {
+        console.error('[Auth] Register failed', e);
+        res.status(500).json({ success: false, message: '가입 처리 중 오류가 발생했습니다.' });
+    }
+});
+
+// [NEW] Change Password Endpoint
+app.post('/api/change-password', (req, res) => {
+    const { id, oldPw, newPw } = req.body;
+    if (!id || !oldPw || !newPw) {
+        return res.status(400).json({ success: false, message: '잘못된 요청입니다.' });
+    }
+
+    const users = getUsers();
+    const userIndex = users.findIndex(u => u.id === id);
+
+    if (userIndex === -1) {
+        return res.status(404).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
+    }
+
+    if (users[userIndex].pw !== oldPw) {
+        return res.status(401).json({ success: false, message: '현재 비밀번호가 일치하지 않습니다.' });
+    }
+
+    users[userIndex].pw = newPw;
+
+    try {
+        fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
+        console.log(`[Auth] Password changed for user: ${id}`);
+        res.json({ success: true, message: '비밀번호가 변경되었습니다.' });
+    } catch (e) {
+        console.error('[Auth] Password change failed', e);
+        res.status(500).json({ success: false, message: '비밀번호 변경 중 오류가 발생했습니다.' });
+    }
 });
 
 // API Endpoint
@@ -373,8 +439,8 @@ app.get('/api/data', (req, res) => {
         const user = users.find(u => u.id === userId && u.pw === userPw);
 
         if (user) {
-            // [NEW] Multi-Admin Support: Any user with role 'admin' sees everything
-            if (user.role === 'admin') {
+            // [NEW] Multi-Admin & Teacher Support: Any user with role 'admin' OR 'teacher' sees everything
+            if (user.role === 'admin' || user.role === 'teacher') {
                 return res.json(cachedData);
             }
 
