@@ -2141,43 +2141,6 @@ const DashboardView = ({ processedData, onSwitchMode, onSimulateLogin, adminPass
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    // ---- LOGIC (Copied from original) ----
-    const students = useMemo(() => {
-        if (!processedData) return [];
-        const map = new Map();
-        processedData.forEach(item => {
-            if (!item.name) return;
-            if (!map.has(item.name)) {
-                map.set(item.name, {
-                    name: item.name,
-                    className: item.className || 'Unknown',
-                    avgScore: 0,
-                    courseList: new Set(),
-                    totalRecords: 0
-                });
-            }
-            const s = map.get(item.name);
-            s.totalRecords++;
-            if (item.score !== undefined && item.score !== null) {
-                // Approximate avg (sum/count would be better but keeping simple)
-                s.avgScore = Math.round(((s.avgScore * (s.totalRecords - 1)) + Number(item.score)) / s.totalRecords);
-            }
-            if (item.course) s.courseList.add(item.course);
-        });
-        return Array.from(map.values()).map(s => ({ ...s, courseList: Array.from(s.courseList) }));
-    }, [processedData]);
-
-    const folders = useMemo(() => {
-        if (!processedData) return ['전체'];
-        const set = new Set(processedData.map(d => d.folder).filter(Boolean));
-        return ['전체', ...Array.from(set)];
-    }, [processedData]);
-
-    const classes = useMemo(() => {
-        if (!processedData) return ['전체'];
-        const set = new Set(processedData.map(d => d.className).filter(Boolean));
-        return ['전체', ...Array.from(set)];
-    }, [processedData]);
 
     const handleServerUpload = async (e) => {
         const files = e.target.files;
