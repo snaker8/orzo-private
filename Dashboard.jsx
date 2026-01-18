@@ -2261,6 +2261,29 @@ const DashboardView = ({ processedData, onSwitchMode, onSimulateLogin, adminPass
         user // [NEW] Shared Prop
     };
 
+    // [NEW] Loading State for Student Auto-Select
+    if (user && user.role === 'student' && !selectedStudentName) {
+        // If data is fully loaded but empty for this student
+        if (processedData && processedData.length > 0 && students.length === 0) {
+            return (
+                <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '20px' }}>
+                    <div style={{ fontSize: '1.2rem', color: THEME.secondary, fontWeight: '700' }}>표시할 학습 데이터가 없습니다.</div>
+                    <button onClick={() => window.location.reload()} style={{ padding: '10px 20px', borderRadius: '8px', background: THEME.primary, color: 'white', border: 'none', cursor: 'pointer' }}>새로고침</button>
+                    <button onClick={() => { sessionStorage.clear(); window.location.reload(); }} style={{ padding: '10px 20px', borderRadius: '8px', background: '#e2e8f0', color: THEME.secondary, border: 'none', cursor: 'pointer' }}>로그아웃</button>
+                </div>
+            );
+        }
+
+        // Otherwise show loading (waiting for auto-select or data fetch)
+        return (
+            <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '20px' }}>
+                <div style={{ width: '40px', height: '40px', border: '4px solid #f3f3f3', borderTop: `4px solid ${THEME.primary}`, borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                <div style={{ color: THEME.secondary, fontWeight: '600' }}>데이터 분석 중입니다...</div>
+                <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+            </div>
+        );
+    }
+
     return (
         <>
             {isMobile ? (
