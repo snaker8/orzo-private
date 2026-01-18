@@ -1902,6 +1902,7 @@ const DashboardDesktop = ({
                     onClose={() => { setSelectedStudentName(null); setShowReport(false); setReportRecords([]); }}
                     onOpenReport={(records) => { setReportRecords(records); setShowReport(true); }}
                     isMobile={false}
+                    showReportButton={user?.role !== 'student'} // [NEW] Hide for students
                 />
             )}
 
@@ -2088,6 +2089,7 @@ const DashboardMobile = ({
                         onClose={() => { setSelectedStudentName(null); setReportRecords([]); }}
                         onOpenReport={(records) => { setReportRecords(records); setShowReport(true); }}
                         isMobile={true}
+                        showReportButton={user?.role !== 'student'} // [NEW] Hide for students
                     />
                 </div>
             )}
@@ -2228,6 +2230,15 @@ const DashboardView = ({ processedData, onSwitchMode, onSimulateLogin, adminPass
         if (!selectedStudentName) return null;
         return students.find(s => s.name === selectedStudentName);
     }, [selectedStudentName, students]);
+
+    // [NEW] Auto-Select Student if Role is Student
+    useEffect(() => {
+        if (user && user.role === 'student' && students.length > 0 && !selectedStudentName) {
+            // Check if name matches (extra safety) or just take the first one since API filters for them
+            // The API returns data matching the student's name.
+            setSelectedStudentName(students[0].name);
+        }
+    }, [user, students, selectedStudentName]);
 
     // ---- PROPS PACKAGE ----
     const sharedProps = {
