@@ -12,7 +12,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const DATA_DIR = path.join(__dirname, 'data');
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'orzoai'; // [SEC] Server-side secret
 
 // [HELPER] Smart Encoding Repair
@@ -320,7 +320,30 @@ watcher
     });
 
 // [NEW] Load Users
-const USERS_FILE = path.join(__dirname, 'users.json');
+// [NEW] Load Users (From Persistent Data Dir)
+const USERS_FILE = path.join(DATA_DIR, 'users.json');
+
+// [MIGRATION] Check if users.json exists in DATA_DIR, if not copy from root
+if (!fs.existsSync(DATA_DIR)) {
+    console.log('[Init] Creating data directory:', DATA_DIR);
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
+if (!fs.existsSync(USERS_FILE)) {
+    const rootUsersFile = path.join(__dirname, 'users.json');
+    if (fs.existsSync(rootUsersFile)) {
+        try {
+            console.log('[Migration] Copying users.json from root to data directory...');
+            fs.copyFileSync(rootUsersFile, USERS_FILE);
+            console.log('[Migration] users.json copied successfully.');
+        } catch (e) {
+            console.error('[Migration] Failed to copy users.json:', e);
+        }
+    } else {
+        // Create empty if root also missing
+        // fs.writeFileSync(USERS_FILE, '[]', 'utf8'); // Optional: Init empty
+    }
+}
 const getUsers = () => {
     try {
         if (!fs.existsSync(USERS_FILE)) return [];
