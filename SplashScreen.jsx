@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-const SplashScreen = ({ onDismiss }) => {
+const SplashScreen = ({ onDismiss, mode = 'startup' }) => { // mode: 'startup' | 'transition'
     const [visible, setVisible] = useState(true);
     const [closing, setClosing] = useState(false);
     const [isLoading, setIsLoading] = useState(true); // [NEW] Loading State
@@ -21,14 +21,29 @@ const SplashScreen = ({ onDismiss }) => {
             if (currentStep >= steps) {
                 clearInterval(timer);
                 setIsLoading(false); // Loading Complete
+
+                // [NEW] Transition Mode: Auto Dismiss
+                if (mode === 'transition') {
+                    handleAutoDismiss();
+                }
             }
         }, interval);
 
         return () => clearInterval(timer);
-    }, []);
+    }, [mode]);
+
+    const handleAutoDismiss = () => {
+        setClosing(true);
+        setTimeout(() => {
+            setVisible(false);
+            onDismiss();
+        }, 800);
+    };
 
     const handleClick = () => {
         if (isLoading) return; // [Block] Interaction during loading
+        if (mode === 'transition') return; // [Block] Click during transition (auto only)
+
         setClosing(true);
         setTimeout(() => {
             setVisible(false);
@@ -46,7 +61,7 @@ const SplashScreen = ({ onDismiss }) => {
                 inset: 0,
                 zIndex: 99999,
                 background: '#0f172a',
-                cursor: isLoading ? 'wait' : 'pointer', // Change cursor
+                cursor: isLoading || mode === 'transition' ? 'wait' : 'pointer', // Change cursor
                 overflow: 'hidden',
                 opacity: closing ? 0 : 1,
                 transition: 'opacity 0.8s ease-in-out'
@@ -124,7 +139,7 @@ const SplashScreen = ({ onDismiss }) => {
                     alignItems: 'center',
                     gap: '15px'
                 }}>
-                    {isLoading ? (
+                    {isLoading || mode === 'transition' ? (
                         <>
                             {/* Loading Indicator */}
                             <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
@@ -144,11 +159,11 @@ const SplashScreen = ({ onDismiss }) => {
                                 fontWeight: '500',
                                 letterSpacing: '1px'
                             }}>
-                                SYSTEM LOADING... {Math.round(progress)}%
+                                {mode === 'transition' ? 'STUDENT DATA LOADING...' : `SYSTEM LOADING... ${Math.round(progress)}%`}
                             </p>
                         </>
                     ) : (
-                        /* Ready State */
+                        /* Ready State (Startup Mode Only) */
                         <p style={{
                             margin: 0,
                             fontSize: 'clamp(0.8rem, 2vw, 1rem)',
