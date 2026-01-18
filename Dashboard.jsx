@@ -1983,8 +1983,8 @@ const DashboardMobile = ({
                     </div>
                 )}
 
-                {/* TAB: HOME (Student Grid) */}
-                {(activeTab === 'home' || activeTab === 'search') && (
+                {/* TAB: HOME (Student Grid) - Hide for Students */}
+                {(activeTab === 'home' || activeTab === 'search') && user?.role !== 'student' && (
                     <div style={{ marginTop: activeTab === 'search' ? '20px' : '0' }}>
                         {activeTab === 'home' && (
                             <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
