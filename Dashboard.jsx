@@ -1357,7 +1357,7 @@ const StudentDetailView = ({ student, onClose, onOpenReport, isMobile, showRepor
 };
 
 // [NEW] User Management Panel
-const UserManagementPanel = ({ themeColor, onSimulateLogin, onClose, adminPassword }) => {
+const UserManagementPanel = ({ themeColor, onSimulateLogin, onClose, adminPassword, user }) => {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(false);
     const [newUser, setNewUser] = useState({ id: '', pw: '', name: '', role: 'student' });
@@ -1372,7 +1372,12 @@ const UserManagementPanel = ({ themeColor, onSimulateLogin, onClose, adminPasswo
         console.log('[Debug] Fetching users...'); // [DEBUG]
         try {
             const res = await fetch('/api/users?pw=orzoai', {
-                headers: { 'x-admin-password': 'orzoai' } // [FIX] Use system password for admin ops
+                headers: {
+                    'x-admin-password': 'orzoai', // Legacy support
+                    // [NEW] Send User Auth
+                    'x-user-id': user ? encodeURIComponent(user.id) : '',
+                    'x-user-pw': user ? encodeURIComponent(user.pw) : ''
+                }
             });
             console.log('[Debug] Fetch status:', res.status); // [DEBUG]
             if (res.ok) {
@@ -1407,7 +1412,11 @@ const UserManagementPanel = ({ themeColor, onSimulateLogin, onClose, adminPasswo
         try {
             const res = await fetch('/api/users/sync?pw=orzoai', {
                 method: 'POST',
-                headers: { 'x-admin-password': 'orzoai' }
+                headers: {
+                    'x-admin-password': 'orzoai',
+                    'x-user-id': user ? encodeURIComponent(user.id) : '',
+                    'x-user-pw': user ? encodeURIComponent(user.pw) : ''
+                }
             });
             const data = await res.json();
             console.log('[Debug] Sync result:', data); // [DEBUG]
@@ -1458,7 +1467,9 @@ const UserManagementPanel = ({ themeColor, onSimulateLogin, onClose, adminPasswo
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'x-admin-password': 'orzoai'
+                    'x-admin-password': 'orzoai',
+                    'x-user-id': user ? encodeURIComponent(user.id) : '',
+                    'x-user-pw': user ? encodeURIComponent(user.pw) : ''
                 },
                 body: JSON.stringify(users)
             });
@@ -1765,6 +1776,7 @@ const SettingsModal = ({ isOpen, onClose, onUpload, onRefresh, onSimulateLogin, 
                                     onSimulateLogin={onSimulateLogin}
                                     onClose={onClose}
                                     adminPassword={adminPassword}
+                                    user={user}
                                 />
                             )}
                         </div>

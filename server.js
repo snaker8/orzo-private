@@ -502,9 +502,25 @@ app.get('/api/data', (req, res) => {
 });
 
 // [NEW] User Management Endpoints
+// Check Admin Auth Helper
+const checkAdminAuth = (req) => {
+    const clientPw = req.headers['x-admin-password'] || req.query.pw || req.body.pw;
+    if (clientPw && clientPw === ADMIN_PASSWORD) return true;
+
+    // Check User Headers
+    const userId = req.headers['x-user-id'] ? decodeURIComponent(req.headers['x-user-id']) : null;
+    const userPw = req.headers['x-user-pw'] ? decodeURIComponent(req.headers['x-user-pw']) : null;
+
+    if (userId && userPw) {
+        const users = getUsers();
+        const user = users.find(u => u.id === userId && u.pw === userPw);
+        if (user && user.role === 'admin') return true;
+    }
+    return false;
+};
+
 app.get('/api/users', (req, res) => {
-    const clientPw = req.headers['x-admin-password'] || req.query.pw;
-    if (!clientPw || clientPw !== ADMIN_PASSWORD) {
+    if (!checkAdminAuth(req)) {
         return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
     const users = getUsers();
@@ -512,8 +528,7 @@ app.get('/api/users', (req, res) => {
 });
 
 app.post('/api/users', (req, res) => {
-    const clientPw = req.headers['x-admin-password'] || req.query.pw || req.body.pw;
-    if (!clientPw || clientPw !== ADMIN_PASSWORD) {
+    if (!checkAdminAuth(req)) {
         return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
 
@@ -532,8 +547,7 @@ app.post('/api/users', (req, res) => {
 });
 
 app.post('/api/users/sync', async (req, res) => {
-    const clientPw = req.headers['x-admin-password'] || req.query.pw || req.body.pw;
-    if (!clientPw || clientPw !== ADMIN_PASSWORD) {
+    if (!checkAdminAuth(req)) {
         return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
 
