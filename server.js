@@ -417,6 +417,46 @@ app.post('/api/change-password', (req, res) => {
     }
 });
 
+// [NEW] Change ID Endpoint
+app.post('/api/change-id', (req, res) => {
+    const { currentId, newId, pw } = req.body;
+    if (!currentId || !newId || !pw) {
+        return res.status(400).json({ success: false, message: '잘못된 요청입니다.' });
+    }
+
+    if (currentId === newId) {
+        return res.status(400).json({ success: false, message: '새 아이디가 현재 아이디와 같습니다.' });
+    }
+
+    const users = getUsers();
+    const userIndex = users.findIndex(u => u.id === currentId);
+
+    if (userIndex === -1) {
+        return res.status(404).json({ success: false, message: '사용자를 찾을 수 없습니다.' });
+    }
+
+    if (users[userIndex].pw !== pw) {
+        return res.status(401).json({ success: false, message: '비밀번호가 일치하지 않습니다.' });
+    }
+
+    // Check collision
+    if (users.some(u => u.id === newId)) {
+        return res.status(400).json({ success: false, message: '이미 존재하는 아이디입니다.' });
+    }
+
+    // Update ID
+    users[userIndex].id = newId;
+
+    try {
+        fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
+        console.log(`[Auth] ID changed: ${currentId} -> ${newId}`);
+        res.json({ success: true, message: '아이디가 변경되었습니다. 다시 로그인해주세요.' });
+    } catch (e) {
+        console.error('[Auth] ID change failed', e);
+        res.status(500).json({ success: false, message: '아이디 변경 중 오류가 발생했습니다.' });
+    }
+});
+
 // API Endpoint
 app.get('/api/data', (req, res) => {
     // Auth Headers

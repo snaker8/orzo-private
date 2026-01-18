@@ -1543,7 +1543,7 @@ const UserManagementPanel = ({ themeColor, onSimulateLogin, onClose, adminPasswo
 };
 
 // [NEW] Settings Modal
-const SettingsModal = ({ isOpen, onClose, onUpload, onRefresh, onSimulateLogin, adminPassword }) => {
+const SettingsModal = ({ isOpen, onClose, onUpload, onRefresh, onSimulateLogin, adminPassword, user }) => {
     const [password, setPassword] = useState('');
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [activeTab, setActiveTab] = useState('general'); // 'general' | 'users'
@@ -1551,6 +1551,12 @@ const SettingsModal = ({ isOpen, onClose, onUpload, onRefresh, onSimulateLogin, 
     // Password Change State
     const [newMp, setNewMp] = useState('');
     const [isChangingPw, setIsChangingPw] = useState(false);
+
+    // [NEW] Admin Account Management State
+    const [newAdminId, setNewAdminId] = useState('');
+    const [adminAuthPw, setAdminAuthPw] = useState(''); // Pw for ID change
+    const [adminPwOld, setAdminPwOld] = useState('');
+    const [adminPwNew, setAdminPwNew] = useState('');
 
     const fileInputRef = useRef(null);
 
@@ -1590,6 +1596,48 @@ const SettingsModal = ({ isOpen, onClose, onUpload, onRefresh, onSimulateLogin, 
         alert('비밀번호가 변경되었습니다. 다음 진입 시 변경된 비밀번호를 사용하세요.');
         setNewMp('');
         setIsChangingPw(false);
+    };
+
+    // [NEW] Admin Account Handlers
+    const onChangeAdminId = async () => {
+        if (!user || user.role !== 'admin') { alert('관리자만 변경 가능합니다.'); return; }
+        if (!newAdminId || !adminAuthPw) { alert('값을 입력해주세요.'); return; }
+        if (confirm('아이디를 변경하시겠습니까? 변경 후 재로그인이 필요합니다.')) {
+            try {
+                const res = await fetch('/api/change-id', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ currentId: user.id, newId: newAdminId, pw: adminAuthPw })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(data.message);
+                    window.location.reload();
+                } else {
+                    alert(data.message);
+                }
+            } catch (e) { alert('오류가 발생했습니다.'); }
+        }
+    };
+
+    const onChangeAdminPw = async () => {
+        if (!user || user.role !== 'admin') { alert('관리자만 변경 가능합니다.'); return; }
+        if (!adminPwOld || !adminPwNew) { alert('값을 입력해주세요.'); return; }
+        try {
+            const res = await fetch('/api/change-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: user.id, oldPw: adminPwOld, newPw: adminPwNew })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert(data.message);
+                setAdminPwOld('');
+                setAdminPwNew('');
+            } else {
+                alert(data.message);
+            }
+        } catch (e) { alert('오류가 발생했습니다.'); }
     };
 
     const handleUploadClick = () => {
@@ -1680,6 +1728,33 @@ const SettingsModal = ({ isOpen, onClose, onUpload, onRefresh, onSimulateLogin, 
                                                 <button onClick={handleChangePassword} style={{ padding: '10px 15px', borderRadius: '8px', background: THEME.primary, color: 'white', border: 'none', fontWeight: '600', cursor: 'pointer' }}>변경</button>
                                             </div>
                                         )}
+                                    </div>
+                                    <div style={{ borderTop: `1px solid ${THEME.border}`, paddingTop: '20px' }}>
+                                        <h3 style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: '700', marginBottom: '15px', textTransform: 'uppercase' }}>관리자 접속 계정 관리</h3>
+
+                                        {/* Change ID */}
+                                        <div style={{ marginBottom: '20px' }}>
+                                            <div style={{ fontSize: '0.9rem', marginBottom: '8px', fontWeight: '600', color: THEME.primary }}>관리자 아이디 변경</div>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                <input type="text" placeholder="새 아이디" value={newAdminId} onChange={e => setNewAdminId(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: `1px solid ${THEME.border}` }} />
+                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                    <input type="password" placeholder="현재 비밀번호 확인" value={adminAuthPw} onChange={e => setAdminAuthPw(e.target.value)} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: `1px solid ${THEME.border}` }} />
+                                                    <button onClick={onChangeAdminId} style={{ padding: '10px 15px', borderRadius: '8px', background: THEME.primary, color: 'white', border: 'none', fontWeight: '600', cursor: 'pointer' }}>변경</button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Change PW */}
+                                        <div>
+                                            <div style={{ fontSize: '0.9rem', marginBottom: '8px', fontWeight: '600', color: THEME.primary }}>관리자 비밀번호 변경</div>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                <input type="password" placeholder="현재 비밀번호" value={adminPwOld} onChange={e => setAdminPwOld(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: `1px solid ${THEME.border}` }} />
+                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                    <input type="password" placeholder="새 비밀번호" value={adminPwNew} onChange={e => setAdminPwNew(e.target.value)} style={{ flex: 1, padding: '10px', borderRadius: '8px', border: `1px solid ${THEME.border}` }} />
+                                                    <button onClick={onChangeAdminPw} style={{ padding: '10px 15px', borderRadius: '8px', background: THEME.secondary, color: 'white', border: 'none', fontWeight: '600', cursor: 'pointer' }}>변경</button>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -2179,6 +2254,7 @@ const DashboardView = ({ processedData, onSwitchMode, onSimulateLogin, adminPass
                 onRefresh={() => window.location.reload()}
                 onSimulateLogin={onSimulateLogin} // [NEW] Pass through
                 adminPassword={adminPassword}
+                user={user} // [NEW] Pass user for ID/PW Change logic
             />
         </>
     );
@@ -2495,14 +2571,8 @@ const Dashboard = ({ data }) => {
     const handleLogin = async (id, pw) => {
         try {
             // 1. Try Admin Legacy or explicit admin
-            if (id === 'admin' && pw === 'orzoai') { // Hardcoded fallback or use server
-                const adminUser = { id: 'admin', name: '관리자', role: 'admin', pw: 'orzoai' };
-                sessionStorage.setItem('orzo_user', JSON.stringify(adminUser));
-                setAuthPassword(pw);
-                setUser(adminUser);
-                setIsAuthenticated(true);
-                return;
-            }
+            // 1. Try Admin Legacy or explicit admin -> REMOVED HARDCODED CHECK
+            // if (id === 'admin' && pw === 'orzoai') { ... }
 
             // 2. Call API for real verification
             const res = await fetch('/api/login', {
@@ -2515,6 +2585,7 @@ const Dashboard = ({ data }) => {
             if (data.success) {
                 const userInfo = { ...data.user, pw }; // Store PW for data calls (simple token replacement)
                 sessionStorage.setItem('orzo_user', JSON.stringify(userInfo));
+                setAuthPassword(pw); // [FIX] Ensure auth password is set for data fetching
                 setUser(userInfo);
                 setIsAuthenticated(true);
             } else {
