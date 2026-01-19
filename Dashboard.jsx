@@ -1375,10 +1375,10 @@ const StudentDetailView = ({ student, onClose, onOpenReport, isMobile, showRepor
 };
 
 // [NEW] User Management Panel
-const UserManagementPanel = ({ themeColor, onSimulateLogin, onClose, adminPassword, user }) => {
+const UserManagementPanel = ({ themeColor, onSimulateLogin, onClose, adminPassword, user, folders }) => {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [newUser, setNewUser] = useState({ id: '', pw: '', name: '', role: 'student' });
+    const [newUser, setNewUser] = useState({ id: '', pw: '', name: '', role: 'student', center: '전체' });
     const [isDirty, setIsDirty] = useState(false);
 
     useEffect(() => {
@@ -1515,7 +1515,29 @@ const UserManagementPanel = ({ themeColor, onSimulateLogin, onClose, adminPasswo
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: '400px' }}>
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '15px' }}>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '15px', flexWrap: 'wrap' }}>
+                <select
+                    value={newUser.role}
+                    onChange={e => setNewUser({ ...newUser, role: e.target.value })}
+                    style={{ padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', background: 'white' }}
+                >
+                    <option value="student">학생</option>
+                    <option value="teacher">선생님</option>
+                </select>
+
+                {newUser.role === 'teacher' && (
+                    <select
+                        value={newUser.center}
+                        onChange={e => setNewUser({ ...newUser, center: e.target.value })}
+                        style={{ padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1', background: 'white', maxWidth: '120px' }}
+                    >
+                        <option value="전체">전체 센터</option>
+                        {folders && folders.filter(f => f !== '전체').map(f => (
+                            <option key={f} value={f}>{f}</option>
+                        ))}
+                    </select>
+                )}
+
                 <input placeholder="이름 (예: 홍길동)" value={newUser.name} onChange={e => setNewUser({ ...newUser, name: e.target.value })} style={{ flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1' }} />
                 <input placeholder="아이디" value={newUser.id} onChange={e => setNewUser({ ...newUser, id: e.target.value })} style={{ flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1' }} />
                 <input placeholder="비밀번호" value={newUser.pw} onChange={e => setNewUser({ ...newUser, pw: e.target.value })} style={{ flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e1' }} />
@@ -1582,7 +1604,7 @@ const UserManagementPanel = ({ themeColor, onSimulateLogin, onClose, adminPasswo
 };
 
 // [NEW] Settings Modal
-const SettingsModal = ({ isOpen, onClose, onUpload, onRefresh, onSimulateLogin, adminPassword, user }) => {
+const SettingsModal = ({ isOpen, onClose, onUpload, onRefresh, onSimulateLogin, adminPassword, user, folders }) => {
     const [password, setPassword] = useState('');
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [activeTab, setActiveTab] = useState('general'); // 'general' | 'users'
@@ -1805,7 +1827,7 @@ const SettingsModal = ({ isOpen, onClose, onUpload, onRefresh, onSimulateLogin, 
                             )}
 
                             {activeTab === 'users' && (
-                                <UserManagementPanel themeColor={THEME.primary} onSimulateLogin={onSimulateLogin} onClose={onClose} adminPassword={adminPassword} user={user} />
+                                <UserManagementPanel themeColor={THEME.primary} onSimulateLogin={onSimulateLogin} onClose={onClose} adminPassword={adminPassword} user={user} folders={folders} />
                             )}
 
                             {activeTab === 'data' && (
@@ -2097,6 +2119,32 @@ const DashboardMobile = ({
                                 />
                             </div>
                         </div>
+
+                        {/* [NEW] Center Selection (Folder) */}
+                        <div>
+                            <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#64748b', marginBottom: '8px' }}>센터 선택</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', overflowX: 'auto', paddingBottom: '5px' }}>
+                                {folders.map(folder => (
+                                    <button
+                                        key={folder}
+                                        onClick={() => setSelectedFolder(folder)}
+                                        style={{
+                                            padding: '8px 14px',
+                                            borderRadius: '20px',
+                                            border: selectedFolder === folder ? `1px solid ${THEME.accent}` : `1px solid ${THEME.border}`,
+                                            background: selectedFolder === folder ? THEME.accent : 'white',
+                                            color: selectedFolder === folder ? 'white' : THEME.secondary,
+                                            fontSize: '0.9rem',
+                                            fontWeight: '600',
+                                            whiteSpace: 'nowrap'
+                                        }}
+                                    >
+                                        {folder}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
                         <div>
                             <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#64748b', marginBottom: '8px' }}>반 선택</div>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
@@ -2439,6 +2487,7 @@ const DashboardView = ({ processedData, onSwitchMode, onSimulateLogin, adminPass
                 onSimulateLogin={onSimulateLogin} // [NEW] Pass through
                 adminPassword={adminPassword}
                 user={user} // [NEW] Pass user for ID/PW Change logic
+                folders={folders} // [NEW] Pass folder list for Center Selection
             />
         </>
     );

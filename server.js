@@ -450,7 +450,7 @@ app.post('/api/login', (req, res) => {
 
 // [NEW] Register Endpoint (Teacher)
 app.post('/api/register', (req, res) => {
-    const { id, pw, name } = req.body;
+    const { id, pw, name, center } = req.body;
     if (!id || !pw || !name) {
         return res.status(400).json({ success: false, message: '모든 필드를 입력해주세요.' });
     }
@@ -465,7 +465,8 @@ app.post('/api/register', (req, res) => {
         pw,
         name,
         role: 'teacher',
-        approved: false // Default to false for teachers
+        approved: false, // Default to false for teachers
+        center: center || '전체' // [NEW] Save Center (Default: All)
     };
 
     users.push(newUser);
@@ -573,7 +574,24 @@ app.get('/api/data', (req, res) => {
 
         if (user) {
             // [NEW] Multi-Admin & Teacher Support: Any user with role 'admin' OR 'teacher' sees everything
-            if (user.role === 'admin' || user.role === 'teacher') {
+            if (user.role === 'admin') {
+                return res.json(cachedData);
+            }
+
+            // [NEW] Center-Based Teacher Access
+            if (user.role === 'teacher') {
+                if (user.center && user.center !== '전체') {
+                    // Filter by center (Folder Name)
+                    const centerData = cachedData.filter(d => {
+                        // Check if folder path starts with the center name
+                        // Logic aligns with how Dashboard parses folders
+                        // Data Item: { folderPath: '의대관/반A/...' }
+                        const p = (d.folderPath || '').replace(/\\/g, '/');
+                        return p.includes(user.center);
+                    });
+                    return res.json(centerData);
+                }
+                // No center assigned = Full Access
                 return res.json(cachedData);
             }
 
