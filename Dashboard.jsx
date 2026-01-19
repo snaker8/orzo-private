@@ -2583,12 +2583,19 @@ const Dashboard = ({ data }) => {
                 if (item.folderPath && item.folderPath !== '.') {
                     const normalized = item.folderPath.replace(/\\/g, '/');
                     const parts = normalized.split('/').filter(p => p && p !== '.');
-                    if (parts.length > 0) folder = parts[0]; // Top level is folder
+                    if (parts.length > 0) {
+                        // [FIX] Ignore 'data' if it appears as root folder (Common artifact)
+                        if (parts[0].toLowerCase() === 'data' && parts.length > 1) {
+                            folder = parts[1];
+                        } else {
+                            folder = parts[0];
+                        }
+                    }
                 }
 
                 // [SAFETY CHECK] Force default if parsed value is still '.' or empty
                 if (className === '.' || className.trim() === '') className = '공통반';
-                if (folder === '.' || folder.trim() === '') folder = '기타';
+                if (folder === '.' || folder.trim() === '' || folder.toLowerCase() === 'data') folder = '기타';
 
                 return {
                     name: String(name).trim(),
