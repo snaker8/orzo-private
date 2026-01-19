@@ -2264,6 +2264,11 @@ const DashboardView = ({ processedData, onSwitchMode, onSimulateLogin, adminPass
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
+    // [NEW] Reset Class Selection when Folder Changes
+    useEffect(() => {
+        setSelectedClass('전체');
+    }, [selectedFolder]);
+
 
     const handleServerUpload = async (e) => {
         const files = e.target.files;
@@ -2353,7 +2358,11 @@ const DashboardView = ({ processedData, onSwitchMode, onSimulateLogin, adminPass
     }, [filtered]);
 
     const folders = useMemo(() => ['전체', ...new Set(processedData ? processedData.map(d => d.folder) : [])], [processedData]);
-    const classes = useMemo(() => ['전체', ...new Set(processedData ? processedData.map(d => d.className) : [])], [processedData]);
+    const classes = useMemo(() => {
+        if (!processedData) return ['전체'];
+        const targets = selectedFolder === '전체' ? processedData : processedData.filter(d => d.folder === selectedFolder);
+        return ['전체', ...new Set(targets.map(d => d.className))];
+    }, [processedData, selectedFolder]);
 
     const selectedStudent = useMemo(() => {
         if (!selectedStudentName) return null;
