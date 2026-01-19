@@ -2327,10 +2327,10 @@ const DashboardMobile = ({
 
 
 // 3. DashboardContainer (Formerly DashboardView)
-const DashboardView = ({ processedData, onSwitchMode, onSimulateLogin, adminPassword, user }) => {
+const DashboardView = ({ processedData, onSwitchMode, onSimulateLogin, adminPassword, user, selectedFolder, setSelectedFolder }) => {
     // ---- STATE ----
     const [selectedStudentName, setSelectedStudentName] = useState(null);
-    const [selectedFolder, setSelectedFolder] = useState('전체');
+    // Lifted to Dashboard: selectedFolder
     const [selectedClass, setSelectedClass] = useState('전체');
     const [searchQuery, setSearchQuery] = useState('');
     const [startDate, setStartDate] = useState(() => {
@@ -2554,6 +2554,7 @@ const Dashboard = ({ data }) => {
     }, []);
 
     const [mode, setMode] = useState('dashboard');
+    const [selectedFolder, setSelectedFolder] = useState('전체'); // [NEW] Lifted State
     const [internalData, setInternalData] = useState([]);
     const [debugStatus, setDebugStatus] = useState('서버 연결 시도 중...');
     const [debugCount, setDebugCount] = useState(0);
@@ -2977,13 +2978,23 @@ const Dashboard = ({ data }) => {
                     {!isAuthenticated ? (
                         <LoginOverlay onLogin={handleLogin} onRegister={onRegister} />
                     ) : (
-                        <DashboardView
-                            processedData={validData} // Optimized Data
-                            onSwitchMode={() => setMode(m => m === 'dashboard' ? 'report' : 'dashboard')}
-                            onSimulateLogin={handleSimulateLogin} // [NEW] Use the handler we defined
-                            adminPassword={authPassword} // Pass for upload check
-                            user={user} // [FIX] Pass user prop
-                        />
+                        mode === 'report' ? (
+                            <RealTimeView
+                                processedData={selectedFolder === '전체' ? validData : validData.filter(d => d.folder === selectedFolder)}
+                                onClose={() => setMode('dashboard')}
+                                authPassword={authPassword}
+                            />
+                        ) : (
+                            <DashboardView
+                                selectedFolder={selectedFolder}
+                                setSelectedFolder={setSelectedFolder}
+                                processedData={validData} // Optimized Data
+                                onSwitchMode={() => setMode(m => m === 'dashboard' ? 'report' : 'dashboard')}
+                                onSimulateLogin={handleSimulateLogin} // [NEW] Use the handler we defined
+                                adminPassword={authPassword} // Pass for upload check
+                                user={user} // [FIX] Pass user prop
+                            />
+                        )
                     )}
                 </div>
             )}
