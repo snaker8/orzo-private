@@ -2103,6 +2103,33 @@ const DashboardMobile = ({
             {/* 2. Content Body */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '20px', paddingBottom: '90px' /* Space for Bottom Nav */ }}>
 
+                {/* [NEW] Center Selection (Always Visible on Top for Admin/Teacher) */}
+                {user?.role !== 'student' && (
+                    <div style={{ marginBottom: '20px' }}>
+                        <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#64748b', marginBottom: '8px' }}>센터 선택</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', overflowX: 'auto', paddingBottom: '5px' }}>
+                            {folders.map(folder => (
+                                <button
+                                    key={folder}
+                                    onClick={() => setSelectedFolder(folder)}
+                                    style={{
+                                        padding: '8px 14px',
+                                        borderRadius: '20px',
+                                        border: selectedFolder === folder ? `1px solid ${THEME.accent}` : `1px solid ${THEME.border}`,
+                                        background: selectedFolder === folder ? THEME.accent : 'white',
+                                        color: selectedFolder === folder ? 'white' : THEME.secondary,
+                                        fontSize: '0.9rem',
+                                        fontWeight: '600',
+                                        whiteSpace: 'nowrap'
+                                    }}
+                                >
+                                    {folder}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 {/* TAB: SEARCH / FILTER */}
                 {activeTab === 'search' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', animation: 'fadeIn 0.2s eased' }}>
@@ -2120,30 +2147,7 @@ const DashboardMobile = ({
                             </div>
                         </div>
 
-                        {/* [NEW] Center Selection (Folder) */}
-                        <div>
-                            <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#64748b', marginBottom: '8px' }}>센터 선택</div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', overflowX: 'auto', paddingBottom: '5px' }}>
-                                {folders.map(folder => (
-                                    <button
-                                        key={folder}
-                                        onClick={() => setSelectedFolder(folder)}
-                                        style={{
-                                            padding: '8px 14px',
-                                            borderRadius: '20px',
-                                            border: selectedFolder === folder ? `1px solid ${THEME.accent}` : `1px solid ${THEME.border}`,
-                                            background: selectedFolder === folder ? THEME.accent : 'white',
-                                            color: selectedFolder === folder ? 'white' : THEME.secondary,
-                                            fontSize: '0.9rem',
-                                            fontWeight: '600',
-                                            whiteSpace: 'nowrap'
-                                        }}
-                                    >
-                                        {folder}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
+
 
                         <div>
                             <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#64748b', marginBottom: '8px' }}>반 선택</div>
