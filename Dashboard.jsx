@@ -7,7 +7,7 @@ import html2canvas from 'html2canvas';
 import {
     LayoutDashboard, Search, FolderOpen, ChevronLeft, Printer, Download,
     BrainCircuit, TrendingUp, Clock, Calendar, CheckCircle2, AlertCircle, FileText,
-    GraduationCap, LineChart, PieChart, MonitorPlay, Maximize, X, Settings, Check, BookOpen, Timer
+    GraduationCap, LineChart, PieChart, MonitorPlay, Maximize, X, Settings, Check, BookOpen, Timer, RotateCw
 } from 'lucide-react';
 import { MOCK_DATA } from './mockData';
 import SplashScreen from './SplashScreen';
