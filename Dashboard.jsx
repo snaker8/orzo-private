@@ -379,6 +379,7 @@ const LoginOverlay = ({ onLogin, onRegister }) => {
 
 // PLACEHOLDERS for Components (will be replaced in next steps)
 const RealTimeView = ({ processedData, onClose, authPassword }) => {
+    useEffect(() => { alert('[Debug] RealTimeView Mounted'); }, []);
     const [page, setPage] = useState(0);
     const [animKey, setAnimKey] = useState(0);
     const [slideDuration, setSlideDuration] = useState(12);
@@ -2055,7 +2056,7 @@ const DashboardDesktop = ({
                     <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                         {/* [NEW] Change Password Button (Desktop) */}
                         <ChangePasswordButton user={user} />
-                        <button onClick={onSwitchMode} style={{ padding: '10px 20px', background: THEME.secondary, color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold' }}>실시간 모드 전환</button>
+                        <button onClick={() => { alert('[Debug] Button Clicked'); onSwitchMode(); }} style={{ padding: '10px 20px', background: 'red', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 'bold' }}>실시간 모드 전환</button>
                         <div style={{ textAlign: 'right' }}><div style={{ fontSize: '2rem', fontWeight: '800', color: THEME.primary }}>{students.length}</div><div style={{ fontSize: '0.9rem', color: THEME.secondary, fontWeight: '600' }}>Students</div></div>
                     </div>
                 </div>
@@ -2479,8 +2480,6 @@ const DashboardView = ({ processedData, onSwitchMode, onSimulateLogin, adminPass
         fileInputRef,
         setIsSettingsOpen, // [NEW] Pass this down
         onSwitchMode,
-        selectedStudent, setSelectedStudentName,
-        showReport, setShowReport,
         selectedStudent, setSelectedStudentName,
         showReport, setShowReport,
         reportRecords, setReportRecords, // [FIX] Added setter
@@ -2989,7 +2988,14 @@ const Dashboard = ({ data }) => {
                                 selectedFolder={selectedFolder}
                                 setSelectedFolder={setSelectedFolder}
                                 processedData={validData} // Optimized Data
-                                onSwitchMode={() => setMode(m => m === 'dashboard' ? 'report' : 'dashboard')}
+                                onSwitchMode={() => {
+                                    console.log('[Dashboard] onSwitchMode Triggered');
+                                    setMode(m => {
+                                        const next = m === 'dashboard' ? 'report' : 'dashboard';
+                                        console.log('[Dashboard] Mode changing:', m, '->', next);
+                                        return next;
+                                    });
+                                }}
                                 onSimulateLogin={handleSimulateLogin} // [NEW] Use the handler we defined
                                 adminPassword={authPassword} // Pass for upload check
                                 user={user} // [FIX] Pass user prop
