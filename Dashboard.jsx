@@ -2515,7 +2515,35 @@ const Dashboard = ({ data }) => {
 
     const processedData = useMemo(() => {
         if (!effectiveData || !Array.isArray(effectiveData)) return [];
-        return effectiveData.map(item => {
+
+        // [FIX] Deduplication Logic: Prefer files in folders over root
+        // 1. Group paths by filename
+        const fileLocs = {};
+        effectiveData.forEach(item => {
+            const fname = item.sourceFile;
+            const fpath = item.folderPath || '.';
+            if (!fileLocs[fname]) fileLocs[fname] = new Set();
+            fileLocs[fname].add(fpath);
+        });
+
+        // 2. Choose best path for each file (Non-root > Root)
+        const bestPathForFile = {};
+        Object.keys(fileLocs).forEach(fname => {
+            const paths = Array.from(fileLocs[fname]);
+            paths.sort((a, b) => {
+                const aScore = (a === '.' || a === '기타') ? 0 : a.length;
+                const bScore = (b === '.' || b === '기타') ? 0 : b.length;
+                return bScore - aScore; // Descending (Longer/Specific path wins)
+            });
+            bestPathForFile[fname] = paths[0];
+        });
+
+        // 3. Filter and Map
+        return effectiveData.filter(item => {
+            const best = bestPathForFile[item.sourceFile];
+            const current = item.folderPath || '.';
+            return current === best;
+        }).map(item => {
             try {
                 const nameKey = Object.keys(item).find(k => k.includes('이름') || k.includes('Name'));
                 const name = nameKey ? item[nameKey] : (item.sourceFile?.split('_')[0] || '이름없음');
