@@ -990,21 +990,25 @@ const ReportModal = ({ selectedStudent, records, onClose, initialAction }) => {
                                         <td style={{ padding: '12px', textAlign: 'center' }}>
                                             <span style={{
                                                 fontSize: '0.75rem', fontWeight: '700', padding: '4px 8px', borderRadius: '6px',
-                                                background: record.status === '학습중' || record.status === '풀이중' ? '#fff7ed' : '#ecfdf5',
-                                                color: record.status === '학습중' || record.status === '풀이중' ? '#ea580c' : '#059669'
+                                                background: record.status.includes('학습') || record.status.includes('풀이') ? '#fff7ed' : '#ecfdf5',
+                                                color: record.status.includes('학습') || record.status.includes('풀이') ? '#ea580c' : '#059669'
                                             }}>
-                                                {record.status === '학습중' || record.status === '풀이중' ? '학습중' : '채점완료'}
+                                                {record.status.includes('학습') || record.status.includes('풀이') ? '풀이중' : '채점완료'}
                                             </span>
                                         </td>
                                         <td style={{ padding: '12px', textAlign: 'center' }}>
-                                            <span style={{
-                                                padding: '4px 10px',
-                                                borderRadius: '20px',
-                                                fontWeight: '700',
-                                                background: record.score >= 90 ? '#0f172a' : 'white',
-                                                color: record.score >= 90 ? 'white' : '#0f172a',
-                                                border: '1px solid #0f172a'
-                                            }}>{record.score}</span>
+                                            {(record.status.includes('학습') || record.status.includes('풀이')) ? (
+                                                <span style={{ color: '#94a3b8', fontWeight: '700' }}>-</span>
+                                            ) : (
+                                                <span style={{
+                                                    padding: '4px 10px',
+                                                    borderRadius: '20px',
+                                                    fontWeight: '700',
+                                                    background: record.score >= 90 ? '#0f172a' : 'white',
+                                                    color: record.score >= 90 ? 'white' : '#0f172a',
+                                                    border: '1px solid #0f172a'
+                                                }}>{record.score}</span>
+                                            )}
                                         </td>
                                         <td style={{ padding: '12px', textAlign: 'center', color: '#64748b' }}>{record.solveTime}</td>
                                         <td style={{ padding: '12px', textAlign: 'center', color: '#64748b' }}>{record.reviewTime}</td>
@@ -1053,26 +1057,40 @@ const StudentDetailView = ({ student, onClose, onOpenReport, isMobile, showRepor
 
     if (!student) return null;
 
-    const courses = ['전체', ...new Set(student.records.map(r => r.course))];
-
-    const filteredRecords = useMemo(() => {
+    // [UPDATED] 1. Filter by Date & Search FIRST
+    const dateFilteredRecords = useMemo(() => {
         let result = student.records;
-        if (selectedCourse !== '전체') {
-            result = result.filter(r => r.course === selectedCourse);
-        }
+        // Date Filter
         if (startDate && endDate) {
             result = result.filter(r => r.dateStr >= startDate && r.dateStr <= endDate);
         } else if (startDate) {
             result = result.filter(r => r.dateStr >= startDate);
         }
 
-        // [NEW] Search Filter
+        // Search Filter
         if (searchQuery) {
             result = result.filter(r => r.title.includes(searchQuery) || r.course.includes(searchQuery));
         }
-
         return result;
-    }, [student.records, selectedCourse, startDate, endDate, searchQuery]);
+    }, [student.records, startDate, endDate, searchQuery]);
+
+    // [UPDATED] 2. Derive Courses from Date-Filtered Records
+    const courses = useMemo(() => {
+        return ['전체', ...new Set(dateFilteredRecords.map(r => r.course))];
+    }, [dateFilteredRecords]);
+
+    // [UPDATED] 3. Filter by Course (Reset if invalid)
+    useEffect(() => {
+        if (selectedCourse !== '전체' && !courses.includes(selectedCourse)) {
+            setSelectedCourse('전체');
+        }
+    }, [courses, selectedCourse]);
+
+    // [UPDATED] 4. Final Filter
+    const filteredRecords = useMemo(() => {
+        if (selectedCourse === '전체') return dateFilteredRecords;
+        return dateFilteredRecords.filter(r => r.course === selectedCourse);
+    }, [dateFilteredRecords, selectedCourse]);
 
     const stats = useMemo(() => {
         return calculateCompetencyStats(filteredRecords);
@@ -1312,16 +1330,16 @@ const StudentDetailView = ({ student, onClose, onOpenReport, isMobile, showRepor
                                                             {/* Score Circle */}
                                                             <div style={{
                                                                 width: '44px', height: '44px', borderRadius: '50%',
-                                                                background: record.score >= 90 ? '#0f172a' : 'white',
-                                                                color: record.score >= 90 ? 'white' : '#0f172a',
-                                                                border: '2px solid #0f172a',
+                                                                background: (record.status.includes('학습') || record.status.includes('풀이')) ? '#fff7ed' : (record.score >= 90 ? '#0f172a' : 'white'),
+                                                                color: (record.status.includes('학습') || record.status.includes('풀이')) ? '#ea580c' : (record.score >= 90 ? 'white' : '#0f172a'),
+                                                                border: (record.status.includes('학습') || record.status.includes('풀이')) ? '2px solid #fdba74' : '2px solid #0f172a',
                                                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                                 fontWeight: '800', fontSize: '1.1rem'
                                                             }}>
-                                                                {record.score}
+                                                                {(record.status.includes('학습') || record.status.includes('풀이')) ? '-' : record.score}
                                                             </div>
-                                                            <span style={{ fontSize: '0.85rem', fontWeight: '700', color: isCompleted ? '#059669' : '#ea580c' }}>
-                                                                {isCompleted ? '채점완료' : '학습중'}
+                                                            <span style={{ fontSize: '0.85rem', fontWeight: '700', color: (record.status.includes('학습') || record.status.includes('풀이')) ? '#ea580c' : '#059669' }}>
+                                                                {(record.status.includes('학습') || record.status.includes('풀이')) ? '풀이중' : '채점완료'}
                                                             </span>
                                                         </div>
                                                     </div>
@@ -1385,14 +1403,18 @@ const StudentDetailView = ({ student, onClose, onOpenReport, isMobile, showRepor
                                                         <td style={{ padding: '14px 20px', textAlign: 'center' }}>
                                                             <span style={{
                                                                 fontSize: '0.75rem', fontWeight: '700', padding: '4px 8px', borderRadius: '6px',
-                                                                background: record.status === '학습중' || record.status === '풀이중' ? '#fff7ed' : '#ecfdf5',
-                                                                color: record.status === '학습중' || record.status === '풀이중' ? '#ea580c' : '#059669'
+                                                                background: record.status.includes('학습') || record.status.includes('풀이') ? '#fff7ed' : '#ecfdf5',
+                                                                color: record.status.includes('학습') || record.status.includes('풀이') ? '#ea580c' : '#059669'
                                                             }}>
-                                                                {record.status === '학습중' || record.status === '풀이중' ? '학습중' : '채점완료'}
+                                                                {record.status.includes('학습') || record.status.includes('풀이') ? '풀이중' : '채점완료'}
                                                             </span>
                                                         </td>
                                                         <td style={{ padding: '14px 20px', textAlign: 'center' }}>
-                                                            <span style={{ color: record.score >= 90 ? THEME.success : THEME.primary, fontWeight: '700' }}>{record.score}</span>
+                                                            {(record.status.includes('학습') || record.status.includes('풀이')) ? (
+                                                                <span style={{ color: '#94a3b8', fontWeight: '700' }}>-</span>
+                                                            ) : (
+                                                                <span style={{ color: record.score >= 90 ? THEME.success : THEME.primary, fontWeight: '700' }}>{record.score}</span>
+                                                            )}
                                                         </td>
                                                         <td style={{ padding: '14px 20px', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>{record.solveTime}</td>
                                                         <td style={{ padding: '14px 20px', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>{record.reviewTime}</td>
